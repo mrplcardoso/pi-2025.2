@@ -3,25 +3,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def show_header_info(df):
-    # Queremos duas linhas: primeira linha = nomes das colunas; segunda linha = tipos de dados
     cols = list(df.columns)
-    tipos = [str(df[col].dtype) for col in cols]
+    tipos = [str(df[c].dtype) for c in cols]
 
-    # Criar um DataFrame pequeno transposto
-    # Linha 1: nomes das colunas
-    # Linha 2: tipos
-    df_header = pd.DataFrame([cols, tipos], index=['Coluna', 'Tipo'])
+    # Primeira linha: nomes das colunas (em negrito)
+    header_row = st.columns(len(cols))
+    for i, name in enumerate(cols):
+        with header_row[i]:
+            st.markdown(f"**{name}**")
 
-    # Transpor, para que as colunas originais virem colunas no df_header
-    # Aqui df_header.T vai ter:
-    #   índice = nomes das colunas originais
-    #   colunas = “Coluna” e “Tipo”
-
-    df_header_t = df_header.T
-
-    st.subheader("Estrutura dos Dados")
-    # Usar st.dataframe ou st.table
-    st.table(df_header_t)
+    # Segunda linha: tipos (em monoespaçado)
+    type_row = st.columns(len(cols))
+    for i, t in enumerate(tipos):
+        with type_row[i]:
+            st.markdown(f"`{t}`")
 
 def main():
     st.title("Visualizador Didático")
