@@ -2,22 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def show_header_info(df):
-    cols = list(df.columns)
-    tipos = [str(df[c].dtype) for c in cols]
-
-    # Primeira linha: nomes das colunas (em negrito)
-    header_row = st.columns(len(cols))
-    for i, name in enumerate(cols):
-        with header_row[i]:
-            st.markdown(f"**{name}**")
-
-    # Segunda linha: tipos (em monoespaçado)
-    type_row = st.columns(len(cols))
-    for i, t in enumerate(tipos):
-        with type_row[i]:
-            st.markdown(f"`{t}`")
-
 def main():
     st.title("Visualizador Didático")
 
@@ -28,11 +12,8 @@ def main():
 
     df = pd.read_csv(uploaded_file)
 
-    # Mostrar cabeçalho + tipos de dados
-    show_header_info(df)
-
     # Sidebar: ações que usuário pode executar
-    st.sidebar.header("Ações / Filtros")
+    st.sidebar.header("Filtragem")
 
     # Filtro por texto em coluna de string (se aplicável)
     col_str_choices = [c for c in df.columns if df[c].dtype == object]
@@ -61,7 +42,7 @@ def main():
         df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
 
     # Segundo bloco: mostrar resultados após ações
-    st.subheader("Resultados")
+    st.subheader("Resultado")
 
     # Mostrar tabela processada
     st.dataframe(df_proc, use_container_width=True)
