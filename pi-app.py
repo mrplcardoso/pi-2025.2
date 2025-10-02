@@ -2,60 +2,89 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-st.title("Analisador de CSV")
+def show_header_info(df):
+    st.subheader("Estrutura dos Dados")
+    # criar um DataFrame auxiliar com nome de coluna e tipo
+    info = {
+        "Coluna": df.columns,
+        "Tipo": [str(df[col].dtype) for col in df.columns]
+    }
+    df_info = pd.DataFrame(info)
+    st.table(df_info)
 
-uploaded_file = st.file_uploader("Carregue seu arquivo CSV", type=["csv"])
+def main():
+    st.title("Visualizador Didático")
 
-if uploaded_file is not None:
+    uploaded_file = st.file_uploader("Carregue seu arquivo .csv", type=["csv"])
+    if uploaded_file is None:
+        st.info("Por favor, carregue um arquivo .scv para começar.")
+        return
+
     df = pd.read_csv(uploaded_file)
 
-    st.subheader("Visualização dos dados")
-    st.dataframe(df)
+    # Mostrar cabeçalho + tipos de dados
+    show_header_info(df)
 
-    # Filtro por coluna de texto — opcional
-    col_str = st.selectbox("Selecione coluna de texto (opcional)", 
-                           [c for c in df.columns if df[c].dtype == object] + ["---"])
-    if col_str and col_str != "---":
-        termo = st.text_input(f"Filtrar '{col_str}' que contêm (parte do texto):")
-        if termo:
-            df = df[df[col_str].str.contains(termo, na=False, case=False)]
+    # Sidebar: ações que usuário pode executar
+    st.sidebar.header("Ações / Filtros")
 
-    # Filtro por intervalo para colunas numéricas
-    col_num = st.selectbox("Selecione coluna numérica para filtrar intervalo (opcional)",
-                           [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])] + ["---"])
-    if col_num and col_num != "---":
-        min_val = float(df[col_num].min())
-        max_val = float(df[col_num].max())
-        intervalo = st.slider(f"Intervalo de {col_num}", min_val, max_val, (min_val, max_val))
-        df = df[df[col_num].between(intervalo[0], intervalo[1])]
+    # Filtro por texto em coluna de string (se aplicável)
+    col_str_choices = [c for c in df.columns if df[c].dtype == object]
+    col_str = st.sidebar.selectbox("Coluna de texto para filtrar (opcional)", ["---"] + col_str_choices)
+    filtro_texto = None
+    if col_str != "---":
+        filtro_texto = st.sidebar.text_input(f"Filtrar '{col_str}' que contêm:")
+
+    # Filtro numérico por intervalo
+    col_num_choices = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    col_num = st.sidebar.selectbox("Coluna numérica para filtrar intervalo (opcional)", ["---"] + col_num_choices)
+    intervalo = None
+    if col_num != "---":
+        vmin = float(df[col_num].min())
+        vmax = float(df[col_num].max())
+        intervalo = st.sidebar.slider(f"Intervalo para {col_num}", vmin, vmax, (vmin, vmax))
 
     # Ordenação
-    coluna = st.selectbox("Selecione coluna para ordenar", df.columns)
-    ordem = st.radio("Ordem", ["Crescente", "Decrescente"])
-    df = df.sort_values(by=coluna, ascending=(ordem == "Crescente"))
+    col_ord = st.sidebar.selectbox("Ordenar por coluna", df.columns)
+    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
 
-    st.subheader("Dados filtrados / ordenados")
-    st.dataframe(df)
+    # Botão para aplicar ações
+    aplicar = st.sidebar.button("Aplicar")
 
-    # Gráfico — escolha tipo
-    st.subheader("Gráfico")
-    tipo = st.selectbox("Tipo de gráfico", ["Bar", "Histograma", "Linha"])
-    if tipo == "Bar":
-        # gráfico de barras para valores categóricos (contagem)
-        fig, ax = plt.subplots()
-        df[coluna].value_counts().plot(kind="bar", ax=ax)
-        st.pyplot(fig)
-    elif tipo == "Histograma":
-        if pd.api.types.is_numeric_dtype(df[coluna]):
+    # Copiar o DataFrame original para aplicar filtros/ordenar
+    df_proc = df.copy()
+
+    if aplicar:
+        # aplicar filtro de texto
+        if filtro_texto and col_str != "---":
+            df_proc = df_proc[df_proc[col_str].str.contains(filtro_texto, na=False, case=False)]
+
+        # aplicar filtro de intervalo numérico
+        if intervalo and col_num != "---":
+            df_proc = df_proc[df_proc[col_num].between(intervalo[0], intervalo[1])]
+
+        # ordenar
+        asc = (ordem == "Crescente")
+        df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
+
+    # Segundo bloco: mostrar resultados após ações
+    st.subheader("Resultados")
+
+    # Mostrar tabela processada
+    st.dataframe(df_proc, use_container_width=True)
+
+    # Mostrar gráfico (exemplo simples)
+    if aplicar:
+        st.subheader("Gráfico")
+        # exemplo de gráfico: contagem por disciplina ou coluna categórica
+        # aqui escolho a coluna de ordenação como exemplo
+        try:
+            counts = df_proc[col_ord].value_counts()
             fig, ax = plt.subplots()
-            df[coluna].plot(kind="hist", ax=ax, bins=20)
+            counts.plot(kind="bar", ax=ax)
             st.pyplot(fig)
-        else:
-            st.write("Coluna não numérica — histograma não aplicável.")
-    elif tipo == "Linha":
-        if pd.api.types.is_numeric_dtype(df[coluna]):
-            fig, ax = plt.subplots()
-            df[coluna].plot(kind="line", ax=ax)
-            st.pyplot(fig)
-        else:
-            st.write("Coluna não numérica — gráfico de linha não aplicável.")
+        except Exception as e:
+            st.write("Não foi possível gerar gráfico:", e)
+
+if __name__ == "__main__":
+    main()
