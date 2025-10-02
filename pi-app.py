@@ -35,15 +35,6 @@ def main():
     if col_str != "---":
         filtro_texto = st.sidebar.text_input(f"Filtrar '{col_str}' que contêm:")
 
-    # Filtro numérico por intervalo
-    col_num_choices = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    col_num = st.sidebar.selectbox("Coluna numérica para filtrar intervalo (opcional)", ["---"] + col_num_choices)
-    intervalo = None
-    if col_num != "---":
-        vmin = float(df[col_num].min())
-        vmax = float(df[col_num].max())
-        intervalo = st.sidebar.slider(f"Intervalo para {col_num}", vmin, vmax, (vmin, vmax))
-
     # Ordenação
     col_ord = st.sidebar.selectbox("Ordenar por coluna", df.columns)
     ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
@@ -59,10 +50,6 @@ def main():
         if filtro_texto and col_str != "---":
             df_proc = df_proc[df_proc[col_str].str.contains(filtro_texto, na=False, case=False)]
 
-        # aplicar filtro de intervalo numérico
-        if intervalo and col_num != "---":
-            df_proc = df_proc[df_proc[col_num].between(intervalo[0], intervalo[1])]
-
         # ordenar
         asc = (ordem == "Crescente")
         df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
@@ -72,19 +59,6 @@ def main():
 
     # Mostrar tabela processada
     st.dataframe(df_proc, use_container_width=True)
-
-    # Mostrar gráfico (exemplo simples)
-    if aplicar:
-        st.subheader("Gráfico")
-        # exemplo de gráfico: contagem por disciplina ou coluna categórica
-        # aqui escolho a coluna de ordenação como exemplo
-        try:
-            counts = df_proc[col_ord].value_counts()
-            fig, ax = plt.subplots()
-            counts.plot(kind="bar", ax=ax)
-            st.pyplot(fig)
-        except Exception as e:
-            st.write("Não foi possível gerar gráfico:", e)
 
 if __name__ == "__main__":
     main()
