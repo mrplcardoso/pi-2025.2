@@ -59,7 +59,7 @@ def main():
     # Sidebar: ações que usuário pode executar
     st.sidebar.header("Filtragem")
 
-    # Filtro
+    # Escolha colunas para filtrar
     cols_para_filtrar = st.sidebar.multiselect("Colunas para filtrar (várias)", df.columns.tolist())
 
     filtros = {}
@@ -76,19 +76,22 @@ def main():
     col_ord = st.sidebar.selectbox("Ordenar por", df.columns)
     ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
 
-    # Botão para aplicar ações
+    # Botões para aplicar e para mostrar só colunas filtradas
     aplicar = st.sidebar.button("Aplicar")
+    mostrar_colunas_filtradas = st.sidebar.checkbox("Mostrar somente colunas usadas", value=False)
 
     # Copiar o DataFrame original para aplicar filtros/ordenar
     df_proc = df.copy()
-    for col, criterio in filtros.items():
-        if pd.api.types.is_numeric_dtype(df[col]):
-            lo, hi = criterio
-            df_proc = df_proc[df_proc[col].between(lo, hi)]
-        else:
-            if criterio:
-                df_proc = df_proc[df_proc[col].isin(criterio)]
 
+    if aplicar:
+        # aplicar filtros
+        for col, criterio in filtros.items():
+            if pd.api.types.is_numeric_dtype(df[col]):
+                lo, hi = criterio
+                df_proc = df_proc[df_proc[col].between(lo, hi)]
+            else:
+                if criterio:
+                    df_proc = df_proc[df_proc[col].isin(criterio)]
         # ordenar
         asc = (ordem == "Crescente")
         df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
@@ -96,8 +99,24 @@ def main():
     # Segundo bloco: mostrar resultados após ações
     st.subheader("Resultado")
 
-    # Mostrar tabela processada
-    st.dataframe(df_proc, use_container_width=True)
+    # Preparar colunas para exibição
+    if mostrar_colunas_filtradas and aplicar:
+        # montar lista de colunas usadas nos filtros + coluna de ordenação
+        colunas_usadas = set(cols_para_filtrar)
+        colunas_usadas.add(col_ord)
+        # opcional: garantir que colunas obrigatórias (por exemplo identidades do aluno) sempre apareçam
+        # colunas_usadas.update(["Aluno", "Disciplina", "Ano"])  # ajuste conforme seu dataset
+
+        # filtrar DataFrame para exibir somente essas colunas
+        cols_para_mostrar = [c for c in df_proc.columns if c in colunas_usadas]
+        # se por acaso não restar nenhuma, fallback para todas as colunas
+        if not cols_para_mostrar:
+            cols_para_mostrar = df_proc.columns.tolist()
+        st.dataframe(df_proc[cols_para_mostrar], use_container_width=True)
+    else:
+        # mostrar todas as colunas
+        st.dataframe(df_proc, use_container_width=True)
+
 
 if __name__ == "__main__":
     main()
