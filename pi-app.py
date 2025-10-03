@@ -1,16 +1,28 @@
 import streamlit as st
 import pandas as pd
+import os
 import matplotlib.pyplot as plt
+
+def read_uploaded_file(uploaded_file):
+    # uploaded_file.name é o nome do arquivo com extensão, ex: “dados.xlsx” ou “alunos.csv”
+    _, ext = os.path.splitext(uploaded_file.name.lower())
+    if ext in (".xls", ".xlsx"):
+        df = pd.read_excel(uploaded_file)
+    elif ext == ".csv":
+        df = pd.read_csv(uploaded_file)
+    else:
+        raise ValueError(f"Formato de arquivo não suportado: {ext}")
+    return df
 
 def main():
     st.title("Visualizador Didático")
 
-    uploaded_file = st.file_uploader("Carregue seu arquivo .csv", type=["csv"])
+    uploaded_file = st.file_uploader("Carregue sua planilha", type=["csv", "xlsx"])
     if uploaded_file is None:
-        st.info("Por favor, carregue um arquivo .scv para começar.")
+        st.info("Por favor, carregue uma planilha para começar.")
         return
 
-    df = pd.read_csv(uploaded_file)
+    df = read_uploaded_file(uploaded_file)
 
     # Sidebar: ações que usuário pode executar
     st.sidebar.header("Filtragem")
