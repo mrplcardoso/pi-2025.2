@@ -8,6 +8,16 @@ def read_uploaded_file(uploaded_file):
     if ext in (".xls", ".xlsx"):
         try:
             df = pd.read_excel(uploaded_file, header=[0,1])
+            # dict_dfs é algo como {'Sheet1': df1, 'Sheet2': df2, ...}
+            # Agora concatenar todos em um só df
+            # manter o nome da planilha como coluna opcional (se quiser)
+            list_dfs = []
+            for sheet_name, df in dict_dfs.items():
+                # opcional: adicionar coluna indicando a planilha de origem
+                df["__sheet_name"] = sheet_name
+                list_dfs.append(df)
+            # concatenar (ignore_index=True para renumerar índice)
+            df = pd.concat(list_dfs, ignore_index=True)
             # se MultiIndex, achatar
             if isinstance(df.columns, pd.MultiIndex):
                 new_cols = []
