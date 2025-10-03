@@ -3,43 +3,48 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 
+def flatten_multilevel_columns(df):
+    """Se df.columns for MultiIndex, achata para strings como “Topo – Sub”."""
+    if isinstance(df.columns, pd.MultiIndex):
+        new_cols = []
+        for top, sub in df.columns:
+            top = str(top).strip()
+            sub = str(sub).strip()
+            if top and sub:
+                new_name = f"{top} - {sub}"
+            elif sub:
+                new_name = sub
+            else:
+                new_name = top
+            new_cols.append(new_name)
+        df.columns = new_cols
+    return df
+
 def read_uploaded_file(uploaded_file):
+    """
+    Lê o arquivo (CSV ou Excel com múltiplas planilhas),
+    achata cabeçalhos multilinha e concatena as planilhas.
+    Retorna um DataFrame “plano”.
+    """
     _, ext = os.path.splitext(uploaded_file.name.lower())
     if ext in (".xls", ".xlsx"):
-        try:
-            df = pd.read_excel(uploaded_file, header=[0,1])
-            # dict_dfs é algo como {'Sheet1': df1, 'Sheet2': df2, ...}
-            # Agora concatenar todos em um só df
-            # manter o nome da planilha como coluna opcional (se quiser)
-            list_dfs = []
-            for sheet_name, df in dict_dfs.items():
-                # opcional: adicionar coluna indicando a planilha de origem
-                df["__sheet_name"] = sheet_name
-                list_dfs.append(df)
-            # concatenar (ignore_index=True para renumerar índice)
-            df = pd.concat(list_dfs, ignore_index=True)
-            # se MultiIndex, achatar
-            if isinstance(df.columns, pd.MultiIndex):
-                new_cols = []
-                for top, sub in df.columns:
-                    top = str(top).strip()
-                    sub = str(sub).strip()
-                    if top and sub:
-                        new_name = f"{top} - {sub}"
-                    elif sub:
-                        new_name = sub
-                    else:
-                        new_name = top
-                    new_cols.append(new_name)
-                df.columns = new_cols
-        except Exception:
-            uploaded_file.seek(0)
-            df = pd.read_excel(uploaded_file, header=0)
+        # lê todas as planilhas
+        dict_dfs = pd.read_excel(uploaded_file, sheet_name=None, header=[0,1])
+        list_flat = []
+        for sheet_name, df in dict_dfs.items():
+            # flatten colunas multilinha
+            df = flatten_multilevel_columns(df)
+            # opcional: marcar de qual planilha veio
+            df["__sheet_name"] = sheet_name
+            list_flat.append(df)
+        # concatenar todas
+        df_concat = pd.concat(list_flat, ignore_index=True, sort=False)
+        return df_concat
     elif ext == ".csv":
         df = pd.read_csv(uploaded_file)
+        return df
     else:
-        raise ValueError(f"Extensão não suportada: {ext}")
-    return df
+        raise ValueError(f"Formato de arquivo não suportado: {ext}")
 
 def main():
     st.title("Visualizador Didático")
