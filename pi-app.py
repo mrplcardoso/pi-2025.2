@@ -72,7 +72,14 @@ def main():
             opcoes = df[col].dropna().unique().tolist()
             filtros[col] = st.sidebar.multiselect(f"Valores para {col}", options=opcoes, default=opcoes)
 
-    # depois, aplicação:
+    # Ordenação
+    col_ord = st.sidebar.selectbox("Ordenar por", df.columns)
+    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
+
+    # Botão para aplicar ações
+    aplicar = st.sidebar.button("Aplicar")
+
+    # Copiar o DataFrame original para aplicar filtros/ordenar
     df_proc = df.copy()
     for col, criterio in filtros.items():
         if pd.api.types.is_numeric_dtype(df[col]):
@@ -81,6 +88,10 @@ def main():
         else:
             if criterio:
                 df_proc = df_proc[df_proc[col].isin(criterio)]
+
+        # ordenar
+        asc = (ordem == "Crescente")
+        df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
 
     # Segundo bloco: mostrar resultados após ações
     st.subheader("Resultado")
