@@ -39,10 +39,10 @@ def read_uploaded_file(uploaded_file):
             list_flat.append(df)
         # concatenar todas
         df_concat = pd.concat(list_flat, ignore_index=True, sort=False)
-        return df_concat
+        return df_concat.fillna(0)
     elif ext == ".csv":
         df = pd.read_csv(uploaded_file)
-        return df
+        return df.fillna(0)
     else:
         raise ValueError(f"Formato de arquivo não suportado: {ext}")
 
@@ -59,16 +59,16 @@ def main():
     # Sidebar: ações que usuário pode executar
     st.sidebar.header("Filtragem")
 
+    # Ordenação
+    col_ord = st.sidebar.selectbox("Ordenar", df.columns)
+    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
+
     # Filtro por texto em coluna de string (se aplicável)
-    col_str_choices = [c for c in df.columns if df[c].dtype == object]
-    col_str = st.sidebar.selectbox("Coluna de texto para filtrar (opcional)", ["---"] + col_str_choices)
+    col_str_choices = [c for c in df.columns]# if df[c].dtype == object]
+    col_str = st.sidebar.selectbox("Coluna para filtrar (opcional)", ["---"] + col_str_choices)
     filtro_texto = None
     if col_str != "---":
         filtro_texto = st.sidebar.text_input(f"Filtrar '{col_str}' que contêm:")
-
-    # Ordenação
-    col_ord = st.sidebar.selectbox("Ordenar por coluna", df.columns)
-    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
 
     # Botão para aplicar ações
     aplicar = st.sidebar.button("Aplicar")
