@@ -60,30 +60,27 @@ def main():
     st.sidebar.header("Filtragem")
 
     # Filtro
-    choices = [c for c in df.columns]# if df[c].dtype == object]
-    col_str = st.sidebar.selectbox("Filtrar por", ["nenhum"] + choices)
-    filtro_texto = None
-    if col_str != "nenhum":
-        filtro_texto = st.sidebar.text_input(f"Filtrar '{col_str}' que contêm:")
+    cols_para_filtrar = st.sidebar.multiselect("Colunas para filtrar (várias)", df.columns.tolist())
 
-    # Ordenação
-    col_ord = st.sidebar.selectbox("Ordenar por", df.columns)
-    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
+    filtros = {}
+    for col in cols_para_filtrar:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            minv = float(df[col].min())
+            maxv = float(df[col].max())
+            filtros[col] = st.sidebar.slider(f"Intervalo para {col}", minv, maxv, (minv, maxv))
+        else:
+            opcoes = df[col].dropna().unique().tolist()
+            filtros[col] = st.sidebar.multiselect(f"Valores para {col}", options=opcoes, default=opcoes)
 
-    # Botão para aplicar ações
-    aplicar = st.sidebar.button("Aplicar")
-
-    # Copiar o DataFrame original para aplicar filtros/ordenar
+    # depois, aplicação:
     df_proc = df.copy()
-
-    if aplicar:
-        # aplicar filtro de texto
-        if filtro_texto and col_str != "---":
-            df_proc = df_proc[df_proc[col_str].str.contains(filtro_texto, na=False, case=False)]
-
-        # ordenar
-        asc = (ordem == "Crescente")
-        df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
+    for col, criterio in filtros.items():
+        if pd.api.types.is_numeric_dtype(df[col]):
+            lo, hi = criterio
+            df_proc = df_proc[df_proc[col].between(lo, hi)]
+        else:
+            if criterio:
+                df_proc = df_proc[df_proc[col].isin(criterio)]
 
     # Segundo bloco: mostrar resultados após ações
     st.subheader("Resultado")
