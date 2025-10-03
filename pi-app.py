@@ -4,14 +4,30 @@ import os
 import matplotlib.pyplot as plt
 
 def read_uploaded_file(uploaded_file):
-    # uploaded_file.name é o nome do arquivo com extensão, ex: “dados.xlsx” ou “alunos.csv”
+    """
+    Lê o arquivo enviado (CSV ou Excel).
+    Se for Excel com várias planilhas, concatena todas em um único DataFrame.
+    Retorna o DataFrame resultante.
+    """
+    # detectar pela extensão
     _, ext = os.path.splitext(uploaded_file.name.lower())
     if ext in (".xls", ".xlsx"):
-        df = pd.read_excel(uploaded_file)
+        # lê todas as planilhas (sheet_name=None → retorna dict)
+        dict_dfs = pd.read_excel(uploaded_file, sheet_name=None)
+        # dict_dfs é algo como {'Sheet1': df1, 'Sheet2': df2, ...}
+        # Agora concatenar todos em um só df
+        # manter o nome da planilha como coluna opcional (se quiser)
+        list_dfs = []
+        for sheet_name, df in dict_dfs.items():
+            # opcional: adicionar coluna indicando a planilha de origem
+            df["__sheet_name"] = sheet_name
+            list_dfs.append(df)
+        # concatenar (ignore_index=True para renumerar índice)
+        df = pd.concat(list_dfs, ignore_index=True)
     elif ext == ".csv":
         df = pd.read_csv(uploaded_file)
     else:
-        raise ValueError(f"Formato de arquivo não suportado: {ext}")
+        raise ValueError(f"Extensão de arquivo não suportada: {ext}")
     return df
 
 def main():
