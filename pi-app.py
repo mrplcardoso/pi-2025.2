@@ -125,10 +125,7 @@ def main():
 
     # 1. Informações gerais
     st.subheader("📋 Informações gerais")
-    st.write(f"**Total de linhas:** {len(df_proc)}")
-    st.write(f"**Total de colunas:** {len(df_proc.columns)}")
-    st.write("**Tipos de dados:**")
-    st.dataframe(df_proc.dtypes.rename("Tipo").reset_index(names=["Coluna"]))
+    st.write(f"**Total de alunos:** {len(df_proc) - 2}")
 
     # 3. Estatísticas descritivas
     st.subheader("📊 Estatísticas descritivas (numéricas)")
