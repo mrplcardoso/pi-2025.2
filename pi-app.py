@@ -35,7 +35,7 @@ def read_uploaded_file(uploaded_file):
             # flatten colunas multilinha
             df = flatten_multilevel_columns(df)
             # opcional: marcar de qual planilha veio
-            df["Planilha"] = sheet_name
+            df["PLANILHA"] = sheet_name
             list_flat.append(df)
         # concatenar todas
         df_concat = pd.concat(list_flat, ignore_index=True, sort=False)
@@ -58,7 +58,7 @@ def main():
 
     # Criação das abas principais
     tab_dados, tab_filtros, tab_analise = st.tabs(
-        ["📋 Dados brutos", "🎛️ Filtragem e ordenação", "📈 Análise exploratória"])
+        ["Visão Geral", "Filtragem e Ordenação", "Análise"])
 
     # ======================================================
     # 🗂️ Aba 1: Dados brutos
@@ -67,17 +67,17 @@ def main():
 
         df_proc = df.copy()
 
-        st.subheader("Visualização inicial dos dados")
+        st.subheader("Visão Geral")
 
         # Garantir que a coluna da planilha exista
-        if "Planilha" not in df_proc.columns:
-            df_proc["Planilha"] = "Único"
+        if "PLANILHA" not in df_proc.columns:
+            df_proc["PLANILHA"] = "Único"
 
-        planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
+        planilhas = ["Todos"] + sorted(df_proc["PLANILHA"].dropna().unique().tolist())
         planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
 
         if planilha_selecionada != "Todos":
-            df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
+            df_info = df_proc[df_proc["PLANILHA"] == planilha_selecionada]
         else:
             df_info = df_proc
 
