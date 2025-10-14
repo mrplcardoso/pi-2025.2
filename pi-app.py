@@ -88,6 +88,9 @@ def main():
         if missing_cols:
             st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
         else:
+            # Total
+            st.markdown(f"**Total de alunos:** {len(df_info)}")
+
             # Quantidade de alunos por ano
             st.markdown("**Quantidade de alunos por ano do ensino médio:**")
             alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
@@ -97,11 +100,6 @@ def main():
             st.markdown("**Quantidade de alunos por turma e ano:**")
             alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
             st.dataframe(alunos_por_turma_ano, use_container_width=True)
-
-            # Total
-            total_alunos = len(df_info)
-            st.markdown("f**Total de alunos:** {total_alunos}")
-            #st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
 
         st.markdown(f"**Total de colunas:** {len(df.columns)}")
         st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
