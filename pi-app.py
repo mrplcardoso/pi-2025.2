@@ -56,107 +56,105 @@ def main():
 
     df = read_uploaded_file(uploaded_file)
 
-    # Sidebar: ações que usuário pode executar
-    st.sidebar.header("Filtragem")
+    # Criação das abas principais
+    tab_dados, tab_filtros, tab_analise = st.tabs(
+        ["📋 Dados brutos", "🎛️ Filtragem e ordenação", "📈 Análise exploratória"])
 
-    # Escolha colunas para filtrar
-    cols_para_filtrar = st.sidebar.multiselect("Colunas para filtrar (várias)", df.columns.tolist())
+    # ======================================================
+    # 🗂️ Aba 1: Dados brutos
+    # ======================================================
+    with tab_dados:
+        st.subheader("Visualização inicial dos dados")
+        st.dataframe(df.head(), use_container_width=True)
+        st.markdown(f"**Total de linhas:** {len(df)} — **Total de colunas:** {len(df.columns)}")
+        st.markdown("**Pré-visualização do cabeçalho completo:**")
+        st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
 
-    filtros = {}
-    for col in cols_para_filtrar:
-        if pd.api.types.is_numeric_dtype(df[col]):
-            minv = float(df[col].min())
-            maxv = float(df[col].max())
-            filtros[col] = st.sidebar.slider(f"Intervalo para {col}", minv, maxv, (minv, maxv))
-        else:
-            opcoes = df[col].dropna().unique().tolist()
-            filtros[col] = st.sidebar.multiselect(f"Valores para {col}", options=opcoes, default=opcoes)
+    # ======================================================
+    # 🎛️ Aba 2: Filtros e ordenação
+    # ======================================================
+    with tab_filtros:
+        st.subheader("Filtragem e ordenação de dados")
 
-    # Ordenação
-    col_ord = st.sidebar.selectbox("Ordenar por", df.columns)
-    ordem = st.sidebar.radio("Ordem", ["Crescente", "Decrescente"])
-
-    # Botões para aplicar e para mostrar só colunas filtradas
-    aplicar = st.sidebar.button("Aplicar")
-    mostrar_colunas_filtradas = st.sidebar.checkbox("Mostrar somente colunas usadas", value=False)
-
-    # Copiar o DataFrame original para aplicar filtros/ordenar
-    df_proc = df.copy()
-
-    if aplicar:
-        # aplicar filtros
-        for col, criterio in filtros.items():
+        # Sidebar alternativa dentro da aba (mais limpo)
+        cols_para_filtrar = st.multiselect("Colunas para filtrar (várias)", df.columns.tolist())
+        filtros = {}
+        for col in cols_para_filtrar:
             if pd.api.types.is_numeric_dtype(df[col]):
-                lo, hi = criterio
-                df_proc = df_proc[df_proc[col].between(lo, hi)]
+                minv = float(df[col].min())
+                maxv = float(df[col].max())
+                filtros[col] = st.slider(f"Intervalo para {col}", minv, maxv, (minv, maxv))
             else:
-                if criterio:
-                    df_proc = df_proc[df_proc[col].isin(criterio)]
-        # ordenar
-        asc = (ordem == "Crescente")
-        df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
+                opcoes = df[col].dropna().unique().tolist()
+                filtros[col] = st.multiselect(f"Valores para {col}", options=opcoes, default=opcoes)
 
-    # Segundo bloco: mostrar resultados após ações
-    st.subheader("Resultado")
+        col_ord = st.selectbox("Ordenar por", df.columns)
+        ordem = st.radio("Ordem", ["Crescente", "Decrescente"])
+        aplicar = st.button("Aplicar filtros e ordenação")
+        mostrar_colunas_filtradas = st.checkbox("Mostrar somente colunas usadas", value=False)
 
-    # Preparar colunas para exibição
-    if mostrar_colunas_filtradas and aplicar:
-        # montar lista de colunas usadas nos filtros + coluna de ordenação
-        colunas_usadas = set(cols_para_filtrar)
-        colunas_usadas.add(col_ord)
-        # opcional: garantir que colunas obrigatórias (por exemplo identidades do aluno) sempre apareçam
-        # colunas_usadas.update(["Aluno", "Disciplina", "Ano"])  # ajuste conforme seu dataset
+        df_proc = df.copy()
+        if aplicar:
+            for col, criterio in filtros.items():
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    lo, hi = criterio
+                    df_proc = df_proc[df_proc[col].between(lo, hi)]
+                else:
+                    if criterio:
+                        df_proc = df_proc[df_proc[col].isin(criterio)]
+            asc = (ordem == "Crescente")
+            df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
 
-        # filtrar DataFrame para exibir somente essas colunas
-        cols_para_mostrar = [c for c in df_proc.columns if c in colunas_usadas]
-        # se por acaso não restar nenhuma, fallback para todas as colunas
-        if not cols_para_mostrar:
-            cols_para_mostrar = df_proc.columns.tolist()
-        st.dataframe(df_proc[cols_para_mostrar], use_container_width=True)
-    else:
-        # mostrar todas as colunas
-        st.dataframe(df_proc, use_container_width=True)
-
+        st.subheader("Resultado filtrado")
+        if mostrar_colunas_filtradas and (aplicar or not filtros):
+            colunas_usadas = set(cols_para_filtrar)
+            colunas_usadas.add(col_ord)
+            cols_para_mostrar = [c for c in df_proc.columns if c in colunas_usadas]
+            if not cols_para_mostrar:
+                cols_para_mostrar = df_proc.columns.tolist()
+            st.dataframe(df_proc[cols_para_mostrar], use_container_width=True)
+        else:
+            st.dataframe(df_proc, use_container_width=True)
 
     # ======================================================
-    # 🔍 SEÇÃO: ANÁLISE EXPLORATÓRIA AUTOMÁTICA
+    # 📈 Aba 3: Análise exploratória
     # ======================================================
-    st.header("Prévia")
+    with tab_analise:
+        st.subheader("Análise exploratória dos dados")
 
-    # 1. Informações gerais
-    # --- Novo bloco: Informações gerais personalizadas ---
-    st.subheader("Informações gerais por planilha")
+        # Garantir que a coluna da planilha exista
+        if "Planilha" not in df_proc.columns:
+            df_proc["Planilha"] = "Único"
 
-    # Opções de planilhas (inclui 'Todos')
-    planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
-    planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
+        planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
+        planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
 
-    # Filtra o dataframe pela planilha selecionada (ou mantém todas)
-    if planilha_selecionada != "Todos":
-        df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
-    else:
-        df_info = df_proc
+        if planilha_selecionada != "Todos":
+            df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
+        else:
+            df_info = df_proc
 
-    # --- Cálculos solicitados ---
-    col_ano = "DADOS GERAIS - SERIE_ANO"
-    col_turma = "DADOS GERAIS - TURMA"
+        col_ano = "DADOS GERAIS - SERIE_ANO"
+        col_turma = "DADOS GERAIS - TURMA"
+        missing_cols = [c for c in (col_ano, col_turma) if c not in df_info.columns]
 
-    # 1️⃣ Quantidade de alunos por ano do ensino médio
-    st.markdown("**Quantidade de alunos por ano do ensino médio:**")
-    alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
-    st.dataframe(alunos_por_ano, use_container_width=True)
+        if missing_cols:
+            st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
+        else:
+            # Quantidade de alunos por ano
+            st.markdown("**Quantidade de alunos por ano do ensino médio:**")
+            alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
+            st.dataframe(alunos_por_ano, use_container_width=True)
 
-    # 2️⃣ Quantidade de alunos por turma e ano
-    st.markdown("**Quantidade de alunos por turma e por ano do ensino médio:**")
-    alunos_por_turma_ano = (
-        df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
-    )
-    st.dataframe(alunos_por_turma_ano, use_container_width=True)
+            # Quantidade de alunos por turma e ano
+            st.markdown("**Quantidade de alunos por turma e ano:**")
+            alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
+            st.dataframe(alunos_por_turma_ano, use_container_width=True)
 
-    # 3️⃣ Total de alunos (número de linhas válidas)
-    st.markdown("**Total de alunos:**")
-    total_alunos = len(df_info)
-    st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
+            # Total
+            st.markdown("**Total de alunos:**")
+            total_alunos = len(df_info)
+            st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
 
 if __name__ == "__main__":
     main()
