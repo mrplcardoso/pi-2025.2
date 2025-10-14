@@ -64,11 +64,47 @@ def main():
     # 🗂️ Aba 1: Dados brutos
     # ======================================================
     with tab_dados:
+
+        df_proc = df.copy()
+
         st.subheader("Visualização inicial dos dados")
-        st.dataframe(df.head(), use_container_width=True)
         st.markdown(f"**Total de linhas:** {len(df)} — **Total de colunas:** {len(df.columns)}")
         st.markdown("**Pré-visualização do cabeçalho completo:**")
         st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
+
+        # Garantir que a coluna da planilha exista
+        if "Planilha" not in df_proc.columns:
+            df_proc["Planilha"] = "Único"
+
+        planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
+        planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
+
+        if planilha_selecionada != "Todos":
+            df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
+        else:
+            df_info = df_proc
+
+        col_ano = "DADOS GERAIS - SERIE_ANO"
+        col_turma = "DADOS GERAIS - TURMA"
+        missing_cols = [c for c in (col_ano, col_turma) if c not in df_info.columns]
+
+        if missing_cols:
+            st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
+        else:
+            # Quantidade de alunos por ano
+            st.markdown("**Quantidade de alunos por ano do ensino médio:**")
+            alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
+            st.dataframe(alunos_por_ano, use_container_width=True)
+
+            # Quantidade de alunos por turma e ano
+            st.markdown("**Quantidade de alunos por turma e ano:**")
+            alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
+            st.dataframe(alunos_por_turma_ano, use_container_width=True)
+
+            # Total
+            st.markdown("**Total de alunos:**")
+            total_alunos = len(df_info)
+            st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
 
     # ======================================================
     # 🎛️ Aba 2: Filtros e ordenação
@@ -122,39 +158,7 @@ def main():
     with tab_analise:
         st.subheader("Análise exploratória dos dados")
 
-        # Garantir que a coluna da planilha exista
-        if "Planilha" not in df_proc.columns:
-            df_proc["Planilha"] = "Único"
 
-        planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
-        planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
-
-        if planilha_selecionada != "Todos":
-            df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
-        else:
-            df_info = df_proc
-
-        col_ano = "DADOS GERAIS - SERIE_ANO"
-        col_turma = "DADOS GERAIS - TURMA"
-        missing_cols = [c for c in (col_ano, col_turma) if c not in df_info.columns]
-
-        if missing_cols:
-            st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
-        else:
-            # Quantidade de alunos por ano
-            st.markdown("**Quantidade de alunos por ano do ensino médio:**")
-            alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
-            st.dataframe(alunos_por_ano, use_container_width=True)
-
-            # Quantidade de alunos por turma e ano
-            st.markdown("**Quantidade de alunos por turma e ano:**")
-            alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
-            st.dataframe(alunos_por_turma_ano, use_container_width=True)
-
-            # Total
-            st.markdown("**Total de alunos:**")
-            total_alunos = len(df_info)
-            st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
 
 if __name__ == "__main__":
     main()
