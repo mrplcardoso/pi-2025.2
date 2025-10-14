@@ -68,9 +68,6 @@ def main():
         df_proc = df.copy()
 
         st.subheader("Visualização inicial dos dados")
-        st.markdown(f"**Total de linhas:** {len(df)} — **Total de colunas:** {len(df.columns)}")
-        st.markdown("**Pré-visualização do cabeçalho completo:**")
-        st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
 
         # Garantir que a coluna da planilha exista
         if "Planilha" not in df_proc.columns:
@@ -102,9 +99,12 @@ def main():
             st.dataframe(alunos_por_turma_ano, use_container_width=True)
 
             # Total
-            st.markdown("**Total de alunos:**")
             total_alunos = len(df_info)
-            st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
+            st.markdown("f**Total de alunos:** {total_alunos}")
+            #st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
+
+        st.markdown(f"**Total de colunas:** {len(df.columns)}")
+        st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
 
     # ======================================================
     # 🎛️ Aba 2: Filtros e ordenação
