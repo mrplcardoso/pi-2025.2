@@ -35,7 +35,7 @@ def read_uploaded_file(uploaded_file):
             # flatten colunas multilinha
             df = flatten_multilevel_columns(df)
             # opcional: marcar de qual planilha veio
-            df["__sheet_name"] = sheet_name
+            df["Planilha"] = sheet_name
             list_flat.append(df)
         # concatenar todas
         df_concat = pd.concat(list_flat, ignore_index=True, sort=False)
@@ -125,7 +125,7 @@ def main():
 
     # 1. Informações gerais
     # --- Novo bloco: Informações gerais personalizadas ---
-    st.subheader("📋 Informações gerais por planilha")
+    st.subheader("Informações gerais por planilha")
 
     # Opções de planilhas (inclui 'Todos')
     planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
