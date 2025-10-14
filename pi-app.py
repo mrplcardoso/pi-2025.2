@@ -121,48 +121,42 @@ def main():
     # ======================================================
     # 🔍 SEÇÃO: ANÁLISE EXPLORATÓRIA AUTOMÁTICA
     # ======================================================
-    st.header("📈 Análise Exploratória dos Dados")
+    st.header("Prévia")
 
     # 1. Informações gerais
-    st.subheader("📋 Informações gerais")
-    st.write(f"**Total de alunos:** {len(df_proc) - 2}")
+    # --- Novo bloco: Informações gerais personalizadas ---
+    st.subheader("📋 Informações gerais por planilha")
 
-    # 3. Estatísticas descritivas
-    st.subheader("📊 Estatísticas descritivas (numéricas)")
-    st.dataframe(df_proc.describe().T)
+    # Opções de planilhas (inclui 'Todos')
+    planilhas = ["Todos"] + sorted(df_proc["Planilha"].dropna().unique().tolist())
+    planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
 
-    # 4. Distribuições automáticas
-    st.subheader("📉 Distribuições de colunas numéricas")
-    numeric_cols = df_proc.select_dtypes(include="number").columns
-    for col in numeric_cols:
-        fig, ax = plt.subplots()
-        df_proc[col].plot(kind="hist", bins=20, ax=ax)
-        ax.set_title(f"Distribuição: {col}")
-        st.pyplot(fig)
+    # Filtra o dataframe pela planilha selecionada (ou mantém todas)
+    if planilha_selecionada != "Todos":
+        df_info = df_proc[df_proc["Planilha"] == planilha_selecionada]
+    else:
+        df_info = df_proc
 
-    # 5. Distribuições de colunas categóricas
-    st.subheader("📦 Distribuições de colunas categóricas")
-    cat_cols = df_proc.select_dtypes(exclude="number").columns
-    for col in cat_cols:
-        if df_proc[col].nunique() <= 20:  # evitar gráficos muito longos
-            fig, ax = plt.subplots()
-            df_proc[col].value_counts().plot(kind="bar", ax=ax)
-            ax.set_title(f"Contagem por categoria: {col}")
-            st.pyplot(fig)
+    # --- Cálculos solicitados ---
+    col_ano = "DADOS GERAIS - SERIE_ANO"
+    col_turma = "DADOS GERAIS - TURMA"
 
-    # 6. Correlação entre variáveis numéricas
-    if len(numeric_cols) > 1:
-        st.subheader("📊 Correlação entre variáveis numéricas")
-        corr = df_proc[numeric_cols].corr()
-        st.dataframe(corr)
-        fig, ax = plt.subplots()
-        im = ax.imshow(corr, cmap="coolwarm")
-        ax.set_xticks(range(len(corr.columns)))
-        ax.set_xticklabels(corr.columns, rotation=45, ha="right")
-        ax.set_yticks(range(len(corr.columns)))
-        ax.set_yticklabels(corr.columns)
-        fig.colorbar(im)
-        st.pyplot(fig)
+    # 1️⃣ Quantidade de alunos por ano do ensino médio
+    st.markdown("**Quantidade de alunos por ano do ensino médio:**")
+    alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
+    st.dataframe(alunos_por_ano, use_container_width=True)
+
+    # 2️⃣ Quantidade de alunos por turma e ano
+    st.markdown("**Quantidade de alunos por turma e por ano do ensino médio:**")
+    alunos_por_turma_ano = (
+        df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
+    )
+    st.dataframe(alunos_por_turma_ano, use_container_width=True)
+
+    # 3️⃣ Total de alunos (número de linhas válidas)
+    st.markdown("**Total de alunos:**")
+    total_alunos = len(df_info)
+    st.metric(label="Total de alunos (linhas válidas)", value=total_alunos)
 
 if __name__ == "__main__":
     main()
