@@ -96,38 +96,47 @@ def general_performance(df):
     ]
 
     # Filtrar somente linhas válidas
-    df_notas = df.dropna(subset=col_notas)
-    df_notas = df_notas.copy()
+    df_notas = df.dropna(subset=col_notas).copy()
 
     # Calcular média do aluno
     df_notas["MÉDIA GERAL"] = df_notas[col_notas].mean(axis=1)
 
-    # Agrupar por série e turma
-    agrupado = df_notas.groupby(
-        ["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"]
-    )["MÉDIA GERAL"].agg(["mean", "max", "min", "count"]).reset_index()
+    # Agrupar por ano, série e turma
+    agrupado = (
+        df_notas.groupby(
+            ["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"]
+        )["MÉDIA GERAL"]
+        .agg(["mean", "max", "min", "count"])
+        .reset_index()
+    )
 
     # Adicionar quantidade de alunos acima e abaixo da média geral
     media_global = df_notas["MÉDIA GERAL"].mean()
     acima_media = (
         df_notas[df_notas["MÉDIA GERAL"] > media_global]
-        .groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"])
+        .groupby(["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"])
         .size()
         .reset_index(name="Acima da média")
     )
     abaixo_media = (
         df_notas[df_notas["MÉDIA GERAL"] <= media_global]
-        .groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"])
+        .groupby(["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"])
         .size()
         .reset_index(name="Abaixo da média")
     )
 
     # Combinar tudo
     resumo = (
-        agrupado.merge(acima_media, on=["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"],
-                       how="left")
-        .merge(abaixo_media, on=["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"], how="left")
+        agrupado
+        .merge(acima_media, on=["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"], how="left")
+        .merge(abaixo_media, on=["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"], how="left")
     )
+
+    # Ordenar conforme solicitado: Turma → Série → Ano
+    resumo = resumo.sort_values(
+        by=["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"],
+        ascending=[True, True, True]
+    ).reset_index(drop=True)
 
     st.markdown("### Estatísticas por Turma / Série / Ano")
     st.dataframe(resumo, use_container_width=True)
