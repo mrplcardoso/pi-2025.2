@@ -88,6 +88,7 @@ def general_review(df):
     st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
 
 def general_performance(df):
+    st.subheader("Desempenho Geral")
 
     # Selecionar colunas de notas
     col_notas = [
@@ -101,7 +102,7 @@ def general_performance(df):
     # Calcular média do aluno
     df_notas["MÉDIA GERAL"] = df_notas[col_notas].mean(axis=1)
 
-    # Agrupar por ano, série e turma
+    # Agrupar por turma, série e ano
     agrupado = (
         df_notas.groupby(
             ["DADOS GERAIS - TURMA", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO"]
@@ -141,24 +142,33 @@ def general_performance(df):
     st.markdown("### Estatísticas por Turma / Série / Ano")
     st.dataframe(resumo, use_container_width=True)
 
-    # --- Gráfico de linha: média por série ao longo dos anos ---
-    st.markdown("### Evolução da Média por Série ao Longo dos Anos")
+    # --- Gráfico de linha: média por turma e série ao longo dos anos ---
+    st.markdown("### Evolução da Média por Turma e Série ao Longo dos Anos")
+
+    # Criar coluna combinando turma e série para identificar cada linha
+    df_notas["TURMA_SÉRIE"] = df_notas["DADOS GERAIS - TURMA"].astype(str) + " - " + df_notas[
+        "DADOS GERAIS - SERIE_ANO"].astype(str)
 
     serie_media = (
-        df_notas.groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO"])["MÉDIA GERAL"]
+        df_notas.groupby(["DADOS GERAIS - ANO", "TURMA_SÉRIE"])["MÉDIA GERAL"]
         .mean()
         .reset_index()
-        .sort_values(["DADOS GERAIS - ANO"])
+        .sort_values(["DADOS GERAIS - ANO", "TURMA_SÉRIE"])
     )
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    for serie, dados in serie_media.groupby("DADOS GERAIS - SERIE_ANO"):
-        ax.plot(dados["DADOS GERAIS - ANO"], dados["MÉDIA GERAL"], marker="o", label=f"{serie}")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    for turma_serie, dados in serie_media.groupby("TURMA_SÉRIE"):
+        ax.plot(
+            dados["DADOS GERAIS - ANO"],
+            dados["MÉDIA GERAL"],
+            marker="o",
+            label=turma_serie
+        )
 
     ax.set_xlabel("Ano do Calendário")
     ax.set_ylabel("Média Geral")
-    ax.set_title("Evolução das Médias por Série")
-    ax.legend(title="Série")
+    ax.set_title("Evolução das Médias por Turma e Série")
+    ax.legend(title="Turma - Série", bbox_to_anchor=(1.05, 1), loc='upper left')
     st.pyplot(fig)
 
 def main():
