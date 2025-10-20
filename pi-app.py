@@ -46,6 +46,112 @@ def read_uploaded_file(uploaded_file):
     else:
         raise ValueError(f"Formato de arquivo não suportado: {ext}")
 
+def general_review(df):
+
+    df_proc = df.copy()
+
+    st.subheader("Visão Geral")
+
+    # Garantir que a coluna da planilha exista
+    if "PLANILHA" not in df_proc.columns:
+        df_proc["PLANILHA"] = "Único"
+
+    planilhas = ["Todos"] + sorted(df_proc["PLANILHA"].dropna().unique().tolist())
+    planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
+
+    if planilha_selecionada != "Todos":
+        df_info = df_proc[df_proc["PLANILHA"] == planilha_selecionada]
+    else:
+        df_info = df_proc
+
+    col_ano = "DADOS GERAIS - SERIE_ANO"
+    col_turma = "DADOS GERAIS - TURMA"
+    missing_cols = [c for c in (col_ano, col_turma) if c not in df_info.columns]
+
+    if missing_cols:
+        st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
+    else:
+        # Total
+        st.markdown(f"**Total de alunos:** {len(df_info)}")
+
+        # Quantidade de alunos por ano
+        st.markdown("**Quantidade de alunos por ano do ensino médio:**")
+        alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
+        st.dataframe(alunos_por_ano, use_container_width=True)
+
+        # Quantidade de alunos por turma e ano
+        st.markdown("**Quantidade de alunos por turma e ano:**")
+        alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
+        st.dataframe(alunos_por_turma_ano, use_container_width=True)
+
+    st.markdown(f"**Total de colunas:** {len(df.columns)}")
+    st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
+
+def general_performance(df):
+
+    # Selecionar colunas de notas
+    col_notas = [
+        "NOTAS - LP", "NOTAS - LI", "NOTAS - BIO", "NOTAS - FÍS", "NOTAS - QUÍ",
+        "NOTAS - MAT", "NOTAS - GEO", "NOTAS - HIS", "NOTAS - FIL", "NOTAS - SOC"
+    ]
+
+    # Filtrar somente linhas válidas
+    df_notas = df.dropna(subset=col_notas)
+    df_notas = df_notas.copy()
+
+    # Calcular média do aluno
+    df_notas["MÉDIA GERAL"] = df_notas[col_notas].mean(axis=1)
+
+    # Agrupar por série e turma
+    agrupado = df_notas.groupby(
+        ["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"]
+    )["MÉDIA GERAL"].agg(["mean", "max", "min", "count"]).reset_index()
+
+    # Adicionar quantidade de alunos acima e abaixo da média geral
+    media_global = df_notas["MÉDIA GERAL"].mean()
+    acima_media = (
+        df_notas[df_notas["MÉDIA GERAL"] > media_global]
+        .groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"])
+        .size()
+        .reset_index(name="Acima da média")
+    )
+    abaixo_media = (
+        df_notas[df_notas["MÉDIA GERAL"] <= media_global]
+        .groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"])
+        .size()
+        .reset_index(name="Abaixo da média")
+    )
+
+    # Combinar tudo
+    resumo = (
+        agrupado.merge(acima_media, on=["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"],
+                       how="left")
+        .merge(abaixo_media, on=["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - TURMA"], how="left")
+    )
+
+    st.markdown("### Estatísticas por Turma / Série / Ano")
+    st.dataframe(resumo, use_container_width=True)
+
+    # --- Gráfico de linha: média por série ao longo dos anos ---
+    st.markdown("### Evolução da Média por Série ao Longo dos Anos")
+
+    serie_media = (
+        df_notas.groupby(["DADOS GERAIS - ANO", "DADOS GERAIS - SERIE_ANO"])["MÉDIA GERAL"]
+        .mean()
+        .reset_index()
+        .sort_values(["DADOS GERAIS - ANO"])
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for serie, dados in serie_media.groupby("DADOS GERAIS - SERIE_ANO"):
+        ax.plot(dados["DADOS GERAIS - ANO"], dados["MÉDIA GERAL"], marker="o", label=f"{serie}")
+
+    ax.set_xlabel("Ano do Calendário")
+    ax.set_ylabel("Média Geral")
+    ax.set_title("Evolução das Médias por Série")
+    ax.legend(title="Série")
+    st.pyplot(fig)
+
 def main():
     st.title("Visualizador Didático")
 
@@ -57,57 +163,28 @@ def main():
     df = read_uploaded_file(uploaded_file)
 
     # Criação das abas principais
-    tab_dados, tab_filtros, tab_analise = st.tabs(
-        ["Visão Geral", "Filtragem e Ordenação", "Análise"])
+    (tab_general_review, tab_general_performance,
+     tab_subject_performance, tab_individual_performance, tab_filter) = st.tabs(
+        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Desempenho Individual", "Filtragem e Ordenação"])
 
     # ======================================================
-    # 🗂️ Aba 1: Dados brutos
+    # Aba 1: Visão Geral
     # ======================================================
-    with tab_dados:
-
-        df_proc = df.copy()
-
-        st.subheader("Visão Geral")
-
-        # Garantir que a coluna da planilha exista
-        if "PLANILHA" not in df_proc.columns:
-            df_proc["PLANILHA"] = "Único"
-
-        planilhas = ["Todos"] + sorted(df_proc["PLANILHA"].dropna().unique().tolist())
-        planilha_selecionada = st.selectbox("Escolha a planilha", planilhas)
-
-        if planilha_selecionada != "Todos":
-            df_info = df_proc[df_proc["PLANILHA"] == planilha_selecionada]
-        else:
-            df_info = df_proc
-
-        col_ano = "DADOS GERAIS - SERIE_ANO"
-        col_turma = "DADOS GERAIS - TURMA"
-        missing_cols = [c for c in (col_ano, col_turma) if c not in df_info.columns]
-
-        if missing_cols:
-            st.error(f"As seguintes colunas não foram encontradas: {missing_cols}")
-        else:
-            # Total
-            st.markdown(f"**Total de alunos:** {len(df_info)}")
-
-            # Quantidade de alunos por ano
-            st.markdown("**Quantidade de alunos por ano do ensino médio:**")
-            alunos_por_ano = df_info.groupby(col_ano).size().reset_index(name="Quantidade de alunos")
-            st.dataframe(alunos_por_ano, use_container_width=True)
-
-            # Quantidade de alunos por turma e ano
-            st.markdown("**Quantidade de alunos por turma e ano:**")
-            alunos_por_turma_ano = df_info.groupby([col_ano, col_turma]).size().reset_index(name="Quantidade de alunos")
-            st.dataframe(alunos_por_turma_ano, use_container_width=True)
-
-        st.markdown(f"**Total de colunas:** {len(df.columns)}")
-        st.dataframe(pd.DataFrame(df.columns, columns=["Colunas"]), use_container_width=True)
+    with tab_general_review:
+        general_review(df)
 
     # ======================================================
-    # 🎛️ Aba 2: Filtros e ordenação
+    # Aba 2: Desempenho Geral
     # ======================================================
-    with tab_filtros:
+
+    with tab_general_performance:
+        general_performance(df)
+
+    # ======================================================
+    # Aba 5: Filtragem e Ordenação
+    # ======================================================
+
+    with tab_filter:
         st.subheader("Filtragem e ordenação de dados")
 
         # Sidebar alternativa dentro da aba (mais limpo)
@@ -149,12 +226,6 @@ def main():
             st.dataframe(df_proc[cols_para_mostrar], use_container_width=True)
         else:
             st.dataframe(df_proc, use_container_width=True)
-
-    # ======================================================
-    # 📈 Aba 3: Análise exploratória
-    # ======================================================
-    with tab_analise:
-        st.subheader("Análise exploratória dos dados")
 
 
 
