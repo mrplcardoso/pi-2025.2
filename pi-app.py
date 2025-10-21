@@ -257,7 +257,7 @@ def dispersal(df):
 
     # --- Boxplot por disciplina ---
     melted = df_filtro.melt(
-        id_vars=["DADOS GERAIS - ALUNO"],
+        id_vars=["DADOS GERAIS - CD_ALUNO_ANONIMIZADO"],
         value_vars=col_notas,
         var_name="Disciplina",
         value_name="Nota"
