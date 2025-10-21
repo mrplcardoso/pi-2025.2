@@ -224,6 +224,73 @@ def subject_performance(df):
         ax2.invert_yaxis()
         st.pyplot(fig2)
 
+def dispersal(df):
+    st.subheader("Dispersão de Notas e Outliers")
+
+    # --- Colunas de notas ---
+    col_notas = [
+        "NOTAS - LP", "NOTAS - LI", "NOTAS - BIO", "NOTAS - FÍS", "NOTAS - QUÍ",
+        "NOTAS - MAT", "NOTAS - GEO", "NOTAS - HIS", "NOTAS - FIL", "NOTAS - SOC"
+    ]
+
+    # --- Limpeza e conversão ---
+    df_notas = df.dropna(subset=col_notas).copy()
+    for c in col_notas:
+        df_notas[c] = pd.to_numeric(df_notas[c], errors="coerce")
+
+    # --- Seletores interativos ---
+    serie_sel = st.selectbox("Selecione a série:", sorted(df_notas["DADOS GERAIS - SERIE_ANO"].dropna().unique()))
+    ano_sel = st.selectbox("Selecione o ano:", sorted(df_notas["DADOS GERAIS - ANO"].dropna().unique()))
+    turma_sel = st.selectbox("Selecione a turma:", sorted(df_notas["DADOS GERAIS - TURMA"].dropna().unique()))
+
+    df_filtro = df_notas[
+        (df_notas["DADOS GERAIS - SERIE_ANO"] == serie_sel) &
+        (df_notas["DADOS GERAIS - ANO"] == ano_sel) &
+        (df_notas["DADOS GERAIS - TURMA"] == turma_sel)
+    ].copy()
+
+    if df_filtro.empty:
+        st.warning("Nenhum dado encontrado para os filtros selecionados.")
+        return
+
+    st.markdown(f"### 📘 Boxplots por Disciplina — {serie_sel}, {turma_sel}, {ano_sel}")
+
+    # --- Boxplot por disciplina ---
+    melted = df_filtro.melt(
+        id_vars=["DADOS GERAIS - ALUNO"],
+        value_vars=col_notas,
+        var_name="Disciplina",
+        value_name="Nota"
+    )
+    melted["Disciplina"] = melted["Disciplina"].str.replace("NOTAS - ", "")
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.boxplot(data=melted, x="Nota", y="Disciplina", orient="h", ax=ax, showfliers=True, color="skyblue")
+    ax.set_title(f"Dispersão das Notas por Disciplina — {serie_sel}, {turma_sel}, {ano_sel}")
+    st.pyplot(fig)
+
+    st.markdown("### 📗 Boxplot das Médias por Turma / Série / Ano")
+
+    # --- Média por aluno ---
+    df_filtro["Média Geral"] = df_filtro[col_notas].mean(axis=1)
+
+    # Preparar dados agregados
+    df_media = df_filtro[["DADOS GERAIS - ALUNO", "DADOS GERAIS - TURMA",
+                          "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO", "Média Geral"]]
+
+    # --- Boxplot final ---
+    fig2, ax2 = plt.subplots(figsize=(10, 5))
+    sns.boxplot(data=df_media, x="Média Geral", y="DADOS GERAIS - TURMA", orient="h", ax=ax2, color="lightgreen")
+    ax2.set_title(f"Dispersão das Médias dos Alunos — {serie_sel}, {ano_sel}")
+    st.pyplot(fig2)
+
+    st.markdown("""
+    **Interpretação**:
+    - Os pontos fora das “caixas” são **outliers** — alunos com desempenho excepcionalmente bom ou ruim.
+    - A linha central é a **mediana**, e o retângulo cobre o **intervalo interquartil (Q1 a Q3)**.
+    - Turmas com caixas mais largas têm **maior variabilidade** de desempenho.
+    """)
+
 
 def main():
     st.title("Visualizador Didático")
@@ -237,8 +304,8 @@ def main():
 
     # Criação das abas principais
     (tab_general_review, tab_general_performance,
-     tab_subject_performance, tab_individual_performance, tab_filter) = st.tabs(
-        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Desempenho Individual", "Filtragem e Ordenação"])
+     tab_subject_performance, tab_dispersal, tab_filter) = st.tabs(
+        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Dispersão", "Filtragem e Ordenação"])
 
     # ======================================================
     # Aba 1: Visão Geral
@@ -259,6 +326,13 @@ def main():
 
     with tab_subject_performance:
         subject_performance(df)
+
+    # ======================================================
+    # Aba 4: Dispersão
+    # ======================================================
+
+    with tab_dispersal:
+        dispersal(df)
 
     # ======================================================
     # Aba 5: Filtragem e Ordenação
