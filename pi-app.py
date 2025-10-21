@@ -171,6 +171,60 @@ def general_performance(df):
     ax.legend(title="Turma - Série", bbox_to_anchor=(1.05, 1), loc='upper left')
     st.pyplot(fig)
 
+def subject_performance(df):
+    st.subheader("Desempenho por Disciplina")
+
+    # --- Colunas de notas ---
+    col_notas = [
+        "NOTAS - LP", "NOTAS - LI", "NOTAS - BIO", "NOTAS - FÍS", "NOTAS - QUÍ",
+        "NOTAS - MAT", "NOTAS - GEO", "NOTAS - HIS", "NOTAS - FIL", "NOTAS - SOC"
+    ]
+
+    # --- Limpeza e preparação ---
+    df_notas = df.dropna(subset=col_notas).copy()
+
+    # Converter notas para numérico (caso venham como texto)
+    for c in col_notas:
+        df_notas[c] = pd.to_numeric(df_notas[c], errors="coerce")
+
+    # --- Cálculo da média e taxa de aprovação por disciplina e série ---
+    lista_series = sorted(df_notas["DADOS GERAIS - SERIE_ANO"].dropna().unique().tolist())
+
+    for serie in lista_series:
+        st.markdown(f"### 🏫 {serie}")
+
+        df_serie = df_notas[df_notas["DADOS GERAIS - SERIE_ANO"] == serie].copy()
+
+        estatisticas = []
+        for col in col_notas:
+            media = df_serie[col].mean()
+            taxa_aprov = (df_serie[col] >= 50).mean() * 100  # percentual de alunos com nota >= 50
+            estatisticas.append({"Disciplina": col.replace("NOTAS - ", ""), "Média": media, "Aprovação (%)": taxa_aprov})
+
+        df_estat = pd.DataFrame(estatisticas).sort_values(by="Média", ascending=False)
+
+        # --- Exibir tabela resumida ---
+        st.dataframe(df_estat, use_container_width=True)
+
+        # --- Gráfico de barras horizontais ---
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        ax1.barh(df_estat["Disciplina"], df_estat["Média"], color="steelblue")
+        ax1.set_xlabel("Média das Notas")
+        ax1.set_ylabel("Disciplina")
+        ax1.set_title(f"Média das Notas - {serie}")
+        ax1.invert_yaxis()  # maior média no topo
+        st.pyplot(fig)
+
+        # --- Gráfico extra: taxa de aprovação ---
+        fig2, ax2 = plt.subplots(figsize=(10, 5))
+        ax2.barh(df_estat["Disciplina"], df_estat["Aprovação (%)"], color="seagreen")
+        ax2.set_xlabel("Taxa de Aprovação (%)")
+        ax2.set_ylabel("Disciplina")
+        ax2.set_title(f"Taxa de Aprovação - {serie}")
+        ax2.invert_yaxis()
+        st.pyplot(fig2)
+
+
 def main():
     st.title("Visualizador Didático")
 
@@ -198,6 +252,13 @@ def main():
 
     with tab_general_performance:
         general_performance(df)
+
+    # ======================================================
+    # Aba 3: Desempenho por Disciplina
+    # ======================================================
+
+    with tab_subject_performance:
+        subject_performance(df)
 
     # ======================================================
     # Aba 5: Filtragem e Ordenação
