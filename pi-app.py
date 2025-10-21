@@ -198,7 +198,7 @@ def subject_performance(df):
         estatisticas = []
         for col in col_notas:
             media = df_serie[col].mean()
-            taxa_aprov = (df_serie[col] >= 50).mean() * 100  # percentual de alunos com nota >= 50
+            taxa_aprov = (df_serie[col] >= 5.0).mean() * 100  # percentual de alunos com nota >= 50
             estatisticas.append({"Disciplina": col.replace("NOTAS - ", ""), "Média": media, "Aprovação (%)": taxa_aprov})
 
         df_estat = pd.DataFrame(estatisticas).sort_values(by="Média", ascending=False)
