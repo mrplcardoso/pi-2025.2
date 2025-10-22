@@ -377,6 +377,123 @@ def dispersal(df):
         - Use a tabela de outliers para identificar os alunos e verificar se há problemas/erros de entrada.
         """)
 
+def manual_filter(df):
+    st.subheader("Filtragem Manual de Dados")
+
+    # --- Identificar colunas principais ---
+    col_ano = "DADOS GERAIS - ANO"
+    col_serie = "DADOS GERAIS - SERIE_ANO"
+    col_turma = "DADOS GERAIS - TURMA"
+
+    col_notas = [
+        "NOTAS - LP", "NOTAS - LI", "NOTAS - BIO", "NOTAS - FÍS", "NOTAS - QUÍ",
+        "NOTAS - MAT", "NOTAS - GEO", "NOTAS - HIS", "NOTAS - FIL", "NOTAS - SOC"
+    ]
+    col_notas = [c for c in col_notas if c in df.columns]
+
+    # --- Calcular média geral (se ainda não existir) ---
+    if "MÉDIA_GERAL" not in df.columns:
+        df["MÉDIA_GERAL"] = df[col_notas].mean(axis=1, skipna=True)
+
+    # --- Filtros principais ---
+    st.markdown("### 🔍 Filtros Principais")
+
+    # Seletores de turma, série e ano
+    filtro_turma = st.multiselect("Filtrar por Turma", sorted(df[col_turma].dropna().unique().tolist()))
+    filtro_serie = st.multiselect("Filtrar por Série/Ano Escolar", sorted(df[col_serie].dropna().unique().tolist()))
+    filtro_ano = st.multiselect("Filtrar por Ano do Calendário", sorted(df[col_ano].dropna().unique().tolist()))
+
+    # Filtro por matérias (opcional: escolher quais matérias e o tipo de condição)
+    st.markdown("### 🧮 Filtros por Disciplinas (opcional)")
+    materias_sel = st.multiselect("Selecionar Disciplinas", col_notas)
+    condicoes_nota = {}
+    for mat in materias_sel:
+        cond_op = st.selectbox(f"Condição para {mat}", ["≥", "≤", ">", "<", "="], key=f"cond_{mat}")
+        valor = st.number_input(f"Valor de comparação para {mat}", min_value=0.0, max_value=100.0, value=50.0, key=f"val_{mat}")
+        condicoes_nota[mat] = (cond_op, valor)
+
+    # Filtro por média geral
+    st.markdown("### 📊 Filtro por Média Geral (opcional)")
+    usar_media = st.checkbox("Ativar filtro por média geral?")
+    media_filtro = None
+    if usar_media:
+        op_media = st.selectbox("Condição para Média", ["≥", "≤", ">", "<", "="])
+        valor_media = st.number_input("Valor da média geral", min_value=0.0, max_value=100.0, value=50.0)
+        media_filtro = (op_media, valor_media)
+
+    # --- Aplicar filtros ---
+    df_filtrado = df.copy()
+
+    if filtro_turma:
+        df_filtrado = df_filtrado[df_filtrado[col_turma].isin(filtro_turma)]
+    if filtro_serie:
+        df_filtrado = df_filtrado[df_filtrado[col_serie].isin(filtro_serie)]
+    if filtro_ano:
+        df_filtrado = df_filtrado[df_filtrado[col_ano].isin(filtro_ano)]
+
+    for mat, (op, val) in condicoes_nota.items():
+        if op == ">":
+            df_filtrado = df_filtrado[df_filtrado[mat] > val]
+        elif op == "<":
+            df_filtrado = df_filtrado[df_filtrado[mat] < val]
+        elif op == "≥":
+            df_filtrado = df_filtrado[df_filtrado[mat] >= val]
+        elif op == "≤":
+            df_filtrado = df_filtrado[df_filtrado[mat] <= val]
+        elif op == "=":
+            df_filtrado = df_filtrado[df_filtrado[mat] == val]
+
+    if media_filtro:
+        op, val = media_filtro
+        if op == ">":
+            df_filtrado = df_filtrado[df_filtrado["MÉDIA_GERAL"] > val]
+        elif op == "<":
+            df_filtrado = df_filtrado[df_filtrado["MÉDIA_GERAL"] < val]
+        elif op == "≥":
+            df_filtrado = df_filtrado[df_filtrado["MÉDIA_GERAL"] >= val]
+        elif op == "≤":
+            df_filtrado = df_filtrado[df_filtrado["MÉDIA_GERAL"] <= val]
+        elif op == "=":
+            df_filtrado = df_filtrado[df_filtrado["MÉDIA_GERAL"] == val]
+
+    # --- Escolher colunas para exibição ---
+    st.markdown("### 🧾 Exibição de Colunas")
+    todas_colunas = df.columns.tolist()
+    colunas_exibir = st.multiselect("Selecione as colunas para exibir", todas_colunas, default=todas_colunas)
+    mostrar_todas = st.checkbox("Mostrar todas as colunas", value=False)
+
+    # Ordenação personalizada
+    colunas_ordenar = st.multiselect("Ordenar por (em sequência)", todas_colunas, default=[col_turma, col_serie, col_ano])
+    ascendente = st.radio("Ordem de ordenação", ["Crescente", "Decrescente"]) == "Crescente"
+
+    aplicar = st.button("Aplicar Filtros e Ordenar")
+
+    if aplicar:
+        if colunas_ordenar:
+            df_filtrado = df_filtrado.sort_values(by=colunas_ordenar, ascending=ascendente)
+
+        if not mostrar_todas:
+            df_exibir = df_filtrado[colunas_exibir]
+        else:
+            df_exibir = df_filtrado
+
+        st.markdown("### 📋 Resultado da Filtragem")
+        st.dataframe(df_exibir, use_container_width=True)
+
+        # --- Download do CSV ---
+        csv = df_exibir.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label="⬇️ Baixar resultado em CSV",
+            data=csv,
+            file_name="filtragem_manual.csv",
+            mime="text/csv",
+        )
+
+        st.info(f"{len(df_exibir)} linhas exibidas após filtragem.")
+    else:
+        st.info("Defina os filtros e clique em **Aplicar Filtros e Ordenar** para gerar o resultado.")
+
+
 def main():
     st.title("Visualizador Didático")
 
@@ -390,7 +507,7 @@ def main():
     # Criação das abas principais
     (tab_general_review, tab_general_performance,
      tab_subject_performance, tab_dispersal, tab_filter) = st.tabs(
-        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Dispersão", "Filtragem e Ordenação"])
+        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Dispersão", "Filtragem Manual"])
 
     # ======================================================
     # Aba 1: Visão Geral
@@ -420,52 +537,11 @@ def main():
         dispersal(df)
 
     # ======================================================
-    # Aba 5: Filtragem e Ordenação
+    # Aba 5: Filtragem Manual
     # ======================================================
 
     with tab_filter:
-        st.subheader("Filtragem e ordenação de dados")
-
-        # Sidebar alternativa dentro da aba (mais limpo)
-        cols_para_filtrar = st.multiselect("Colunas para filtrar (várias)", df.columns.tolist())
-        filtros = {}
-        for col in cols_para_filtrar:
-            if pd.api.types.is_numeric_dtype(df[col]):
-                minv = float(df[col].min())
-                maxv = float(df[col].max())
-                filtros[col] = st.slider(f"Intervalo para {col}", minv, maxv, (minv, maxv))
-            else:
-                opcoes = df[col].dropna().unique().tolist()
-                filtros[col] = st.multiselect(f"Valores para {col}", options=opcoes, default=opcoes)
-
-        col_ord = st.selectbox("Ordenar por", df.columns)
-        ordem = st.radio("Ordem", ["Crescente", "Decrescente"])
-        aplicar = st.button("Aplicar filtros e ordenação")
-        mostrar_colunas_filtradas = st.checkbox("Mostrar somente colunas usadas", value=False)
-
-        df_proc = df.copy()
-        if aplicar:
-            for col, criterio in filtros.items():
-                if pd.api.types.is_numeric_dtype(df[col]):
-                    lo, hi = criterio
-                    df_proc = df_proc[df_proc[col].between(lo, hi)]
-                else:
-                    if criterio:
-                        df_proc = df_proc[df_proc[col].isin(criterio)]
-            asc = (ordem == "Crescente")
-            df_proc = df_proc.sort_values(by=col_ord, ascending=asc)
-
-        st.subheader("Resultado filtrado")
-        if mostrar_colunas_filtradas and (aplicar or not filtros):
-            colunas_usadas = set(cols_para_filtrar)
-            colunas_usadas.add(col_ord)
-            cols_para_mostrar = [c for c in df_proc.columns if c in colunas_usadas]
-            if not cols_para_mostrar:
-                cols_para_mostrar = df_proc.columns.tolist()
-            st.dataframe(df_proc[cols_para_mostrar], use_container_width=True)
-        else:
-            st.dataframe(df_proc, use_container_width=True)
-
+        manual_filter(df)
 
 
 if __name__ == "__main__":
