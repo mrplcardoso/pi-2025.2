@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import seaborn as sns  # <<< necessário
+sns.set_theme(style="whitegrid")
 
 def flatten_multilevel_columns(df):
     """Se df.columns for MultiIndex, achata para strings como “Topo – Sub”."""
@@ -233,64 +235,147 @@ def dispersal(df):
         "NOTAS - MAT", "NOTAS - GEO", "NOTAS - HIS", "NOTAS - FIL", "NOTAS - SOC"
     ]
 
-    # --- Limpeza e conversão ---
-    df_notas = df.dropna(subset=col_notas).copy()
+    # Verificar existência das colunas de nota
+    faltantes = [c for c in col_notas if c not in df.columns]
+    if len(faltantes) == len(col_notas):
+        st.error("Nenhuma das colunas de NOTAS foi encontrada no DataFrame. Verifique os nomes das colunas.")
+        return
+    # manter apenas colunas existentes
+    col_notas = [c for c in col_notas if c in df.columns]
+
+    # --- Identificador do aluno (coluna potencial) ---
+    possible_id_cols = [
+        "DADOS GERAIS - CD_ALUNO_ANONIMIZADO",
+        "DADOS GERAIS - Nº CHAMADA",
+        "DADOS GERAIS - NÚMERO CHAMADA",
+        "CD_ALUNO_ANONIMIZADO",
+        "Nº CHAMADA",
+        "N_CHAMADA",
+        "ALUNO",
+        "DADOS GERAIS - ALUNO"
+    ]
+    id_col = None
+    for c in possible_id_cols:
+        if c in df.columns:
+            id_col = c
+            break
+    if id_col is None:
+        # criar coluna de id a partir do índice
+        df = df.reset_index(drop=True)
+        df["ALUNO_ID"] = df.index.astype(str)
+        id_col = "ALUNO_ID"
+
+    # --- Conversão das notas para numérico ---
+    df_notas = df.copy()
     for c in col_notas:
         df_notas[c] = pd.to_numeric(df_notas[c], errors="coerce")
 
-    # --- Seletores interativos ---
-    serie_sel = st.selectbox("Selecione a série:", sorted(df_notas["DADOS GERAIS - SERIE_ANO"].dropna().unique()))
-    ano_sel = st.selectbox("Selecione o ano:", sorted(df_notas["DADOS GERAIS - ANO"].dropna().unique()))
-    turma_sel = st.selectbox("Selecione a turma:", sorted(df_notas["DADOS GERAIS - TURMA"].dropna().unique()))
+    # Seletores (defensivos: verificar existência das colunas de agrupamento)
+    col_serie = "DADOS GERAIS - SERIE_ANO"
+    col_ano = "DADOS GERAIS - ANO"
+    col_turma = "DADOS GERAIS - TURMA"
 
-    df_filtro = df_notas[
-        (df_notas["DADOS GERAIS - SERIE_ANO"] == serie_sel) &
-        (df_notas["DADOS GERAIS - ANO"] == ano_sel) &
-        (df_notas["DADOS GERAIS - TURMA"] == turma_sel)
-    ].copy()
+    for col in (col_serie, col_ano, col_turma):
+        if col not in df_notas.columns:
+            st.error(f"Coluna obrigatória ausente: {col}. Não é possível gerar dispersão.")
+            return
+
+    # Opcional: permitir seleção (ou usar todos)
+    serie_sel = st.selectbox("Selecione a série (ou Todos)",
+                             ["Todos"] + sorted(df_notas[col_serie].dropna().unique().tolist()))
+    ano_sel = st.selectbox("Selecione o ano (ou Todos)",
+                           ["Todos"] + sorted(df_notas[col_ano].dropna().unique().tolist()))
+    turma_sel = st.selectbox("Selecione a turma (ou Todos)",
+                             ["Todos"] + sorted(df_notas[col_turma].dropna().unique().tolist()))
+
+    # Aplicar filtros de seleção
+    df_filtro = df_notas.copy()
+    if serie_sel != "Todos":
+        df_filtro = df_filtro[df_filtro[col_serie] == serie_sel]
+    if ano_sel != "Todos":
+        df_filtro = df_filtro[df_filtro[col_ano] == ano_sel]
+    if turma_sel != "Todos":
+        df_filtro = df_filtro[df_filtro[col_turma] == turma_sel]
 
     if df_filtro.empty:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
         return
 
-    st.markdown(f"### 📘 Boxplots por Disciplina — {serie_sel}, {turma_sel}, {ano_sel}")
+    # --- Boxplot por disciplina (mostra outliers) ---
+    st.markdown("### 📘 Boxplots por Disciplina (outliers mostrados)")
 
-    # --- Boxplot por disciplina ---
+    # melt para long format
     melted = df_filtro.melt(
-        id_vars=["DADOS GERAIS - CD_ALUNO_ANONIMIZADO"],
+        id_vars=[id_col, col_turma, col_serie, col_ano],
         value_vars=col_notas,
         var_name="Disciplina",
         value_name="Nota"
     )
-    melted["Disciplina"] = melted["Disciplina"].str.replace("NOTAS - ", "")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sns.boxplot(data=melted, x="Nota", y="Disciplina", orient="h", ax=ax, showfliers=True, color="skyblue")
-    ax.set_title(f"Dispersão das Notas por Disciplina — {serie_sel}, {turma_sel}, {ano_sel}")
+    # limpar nome da disciplina para exibir
+    melted["Disciplina"] = melted["Disciplina"].str.replace("NOTAS - ", "").str.strip()
+
+    # plot: um boxplot por disciplina (horizontal)
+    fig, ax = plt.subplots(figsize=(12, max(4, len(col_notas) * 0.6)))
+    sns.boxplot(data=melted, x="Nota", y="Disciplina", orient="h", ax=ax, showfliers=True)
+    ax.set_title(f"Dispersão das Notas por Disciplina — Série: {serie_sel} | Turma: {turma_sel} | Ano: {ano_sel}")
+    ax.set_xlabel("Nota")
+    ax.set_ylabel("Disciplina")
     st.pyplot(fig)
 
-    st.markdown("### 📗 Boxplot das Médias por Turma / Série / Ano")
+    # --- Identificar outliers por disciplina (Q1/Q3 rule) ---
+    st.markdown("#### 🔎 Alunos identificados como outliers (por disciplina)")
 
-    # --- Média por aluno ---
-    df_filtro["Média Geral"] = df_filtro[col_notas].mean(axis=1)
+    outlier_rows = []
+    for disc in melted["Disciplina"].unique():
+        sub = melted[melted["Disciplina"] == disc].dropna(subset=["Nota"])
+        if sub.empty:
+            continue
+        q1 = sub["Nota"].quantile(0.25)
+        q3 = sub["Nota"].quantile(0.75)
+        iqr = q3 - q1
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+        out = sub[(sub["Nota"] < lower) | (sub["Nota"] > upper)]
+        if not out.empty:
+            # pegar algumas colunas úteis para identificar
+            for _, r in out.iterrows():
+                outlier_rows.append({
+                    "Disciplina": disc,
+                    id_col: r[id_col],
+                    col_turma: r[col_turma],
+                    col_serie: r[col_serie],
+                    col_ano: r[col_ano],
+                    "Nota": r["Nota"],
+                    "Tipo": "Acima" if r["Nota"] > upper else "Abaixo"
+                })
 
-    # Preparar dados agregados
-    df_media = df_filtro[["DADOS GERAIS - ALUNO", "DADOS GERAIS - TURMA",
-                          "DADOS GERAIS - SERIE_ANO", "DADOS GERAIS - ANO", "Média Geral"]]
+    if outlier_rows:
+        df_outliers = pd.DataFrame(outlier_rows).sort_values([col_turma, col_serie, col_ano])
+        st.dataframe(df_outliers, use_container_width=True)
+    else:
+        st.info("Nenhum outlier detectado nas disciplinas com base na regra IQR (1.5 * IQR).")
 
-    # --- Boxplot final ---
-    fig2, ax2 = plt.subplots(figsize=(10, 5))
-    sns.boxplot(data=df_media, x="Média Geral", y="DADOS GERAIS - TURMA", orient="h", ax=ax2, color="lightgreen")
-    ax2.set_title(f"Dispersão das Médias dos Alunos — {serie_sel}, {ano_sel}")
+    # --- Boxplot final: médias por aluno (por turma) ---
+    st.markdown("### 📗 Boxplot das Médias por Aluno (por Turma)")
+
+    # calcular média por aluno usando as colunas de nota
+    df_filtro["MÉDIA_GERAL_ALUNO"] = df_filtro[col_notas].mean(axis=1)
+
+    # boxplot das médias, agrupado por turma (horizontal)
+    fig2, ax2 = plt.subplots(figsize=(12, max(4, len(df_filtro[col_turma].unique()) * 0.6)))
+    sns.boxplot(data=df_filtro, x="MÉDIA_GERAL_ALUNO", y=col_turma, orient="h", ax=ax2, showfliers=True)
+    ax2.set_title(f"Dispersão das Médias por Turma — Série: {serie_sel} | Ano: {ano_sel}")
+    ax2.set_xlabel("Média Geral do Aluno")
+    ax2.set_ylabel("Turma")
     st.pyplot(fig2)
 
     st.markdown("""
-    **Interpretação**:
-    - Os pontos fora das “caixas” são **outliers** — alunos com desempenho excepcionalmente bom ou ruim.
-    - A linha central é a **mediana**, e o retângulo cobre o **intervalo interquartil (Q1 a Q3)**.
-    - Turmas com caixas mais largas têm **maior variabilidade** de desempenho.
-    """)
-
+        **Interpretação**:
+        - Pontos fora das caixas são outliers (muito acima ou muito abaixo do intervalo interquartil).
+        - A caixa mostra Q1–Q3; a linha dentro da caixa é a mediana.
+        - Use a tabela de outliers para identificar os alunos e verificar se há problemas/erros de entrada.
+        """)
 
 def main():
     st.title("Visualizador Didático")
