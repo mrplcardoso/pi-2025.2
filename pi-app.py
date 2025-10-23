@@ -381,104 +381,177 @@ def manual_filter(df):
     st.subheader("Filtragem Manual de Dados")
 
     if df is None or df.empty:
-        st.warning("Nenhum dado foi carregado ainda.")
+        st.warning("Nenhum dado carregado.")
         return
 
-    df_filtered = df.copy()
+        # --- Preparação: calcular MÉDIA_GERAL se necessário ---
+    col_notas = [c for c in df.columns if c.startswith("NOTAS - ")]
+    if "MÉDIA_GERAL" not in df.columns:
+        df["MÉDIA_GERAL"] = df[col_notas].mean(axis=1, skipna=True)
 
-    # --- Filtros básicos ---
-    st.subheader("Filtros principais")
+    # Colunas fixas internas (não aparecem na lista de seleção)
+    col_turma = "DADOS GERAIS - TURMA"
+    col_serie = "DADOS GERAIS - SERIE_ANO"
+    col_ano = "DADOS GERAIS - ANO"
+    col_media = "MÉDIA_GERAL"
+
+    # --- Construir mapeamento para exibição (display name) ---
+    def display_name(col):
+        name = col
+        # remover prefixo "DADOS GERAIS - " só na exibição
+        name = name.replace("DADOS GERAIS - ", "")
+        # mostrar "% ACERTO" em vez de "PORCENTAGEM"
+        name = name.replace("PORCENTAGEM", "% ACERTO")
+        return name
+
+    # lista de colunas disponíveis para o usuário (exclui colunas fixas e 'PLANILHA')
+    cols_para_opcoes = [
+        c for c in df.columns
+        if c not in (col_turma, col_serie, col_ano, col_media) and "PLANILHA" not in c
+    ]
+
+    # Ordem das opções de exibição (apenas para o menu)
+    options_display = [display_name(c) for c in cols_para_opcoes]
+
+    # --- FILTROS (turma/serie/ano) com listas dos valores disponíveis ---
+    st.markdown("### 🔎 Filtros principais")
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        turma_filtro = st.multiselect("Turma:", sorted(df['TURMA'].unique()))
+        turma_vals = sorted(df[col_turma].dropna().unique().tolist()) if col_turma in df.columns else []
+        filter_turma = st.multiselect("Turma", options=turma_vals)
     with col2:
-        serie_filtro = st.multiselect("Série:", sorted(df['SÉRIE'].unique()))
+        serie_vals = sorted(df[col_serie].dropna().unique().tolist()) if col_serie in df.columns else []
+        filter_serie = st.multiselect("Série", options=serie_vals)
     with col3:
-        ano_filtro = st.multiselect("Ano:", sorted(df['ANO'].unique()))
+        ano_vals = sorted(df[col_ano].dropna().unique().tolist()) if col_ano in df.columns else []
+        filter_ano = st.multiselect("Ano", options=ano_vals)
 
-    if turma_filtro:
-        df_filtered = df_filtered[df_filtered['TURMA'].isin(turma_filtro)]
-    if serie_filtro:
-        df_filtered = df_filtered[df_filtered['SÉRIE'].isin(serie_filtro)]
-    if ano_filtro:
-        df_filtered = df_filtered[df_filtered['ANO'].isin(ano_filtro)]
+    # --- Filtros por matéria (lista de matérias mostrada sem prefixo) ---
+    st.markdown("### 🧾 Filtros por Matéria (opcional)")
+    materias_sel_display = st.multiselect("Selecione matérias para filtrar (opcional)", options=options_display)
 
-    # --- Filtro por Matéria ---
-    materias_colunas = [c for c in df.columns if
-                        c not in ['TURMA', 'SÉRIE', 'ANO', 'MÉDIA GERAL', 'PLANILHA'] and not c.startswith("Unnamed")]
-    materia = st.selectbox("Filtrar por Matéria:", ["(nenhum)"] + materias_colunas)
+    # converter seleção de display names de volta para nomes reais das colunas
+    # (pode haver nomes parecidos, então fazemos busca por substring exata do display)
+    def find_real_column_from_display(display):
+        for real in cols_para_opcoes:
+            if display == display_name(real):
+                return real
+        return None
 
-    # --- Filtro por média ---
-    col_filt, comp_filt, val_filt = st.columns([2, 1, 1])
-    with col_filt:
-        if materia != "(nenhum)":
-            st.caption("Filtrando pela média da matéria selecionada")
-        else:
-            st.caption("Filtrando pela média geral")
-    with comp_filt:
-        comparador = st.selectbox("Comparador:", ["Nenhum", "<", "≤", ">", "≥", "="])
-    with val_filt:
-        valor = st.number_input("Valor:", step=0.1)
+    condicoes_materia = {}
+    for disp in materias_sel_display:
+        real_col = find_real_column_from_display(disp)
+        if real_col is None:
+            continue
+        op = st.selectbox(f"Condição para {disp}", ["Nenhum", "<", "≤", ">", "≥", "="], key=f"op_{disp}")
+        if op != "Nenhum":
+            val = st.number_input(f"Valor para {disp}", key=f"val_{disp}", step=0.1)
+            condicoes_materia[real_col] = (op, val)
 
-    if comparador != "Nenhum":
-        coluna_ref = materia if materia != "(nenhum)" else "MÉDIA GERAL"
-        if coluna_ref in df_filtered.columns:
-            if comparador == "<":
-                df_filtered = df_filtered[df_filtered[coluna_ref] < valor]
-            elif comparador == "≤":
-                df_filtered = df_filtered[df_filtered[coluna_ref] <= valor]
-            elif comparador == ">":
-                df_filtered = df_filtered[df_filtered[coluna_ref] > valor]
-            elif comparador == "≥":
-                df_filtered = df_filtered[df_filtered[coluna_ref] >= valor]
-            elif comparador == "=":
-                df_filtered = df_filtered[df_filtered[coluna_ref] == valor]
+    # --- Filtro por média geral ---
+    st.markdown("### 📊 Filtro por Média Geral (opcional)")
+    usar_media = st.checkbox("Ativar filtro por média geral?")
+    media_cond = None
+    if usar_media:
+        op_media = st.selectbox("Comparador para média", ["<", "≤", ">", "≥", "="], key="op_media")
+        val_media = st.number_input("Valor da média", step=0.1, key="val_media")
+        media_cond = (op_media, val_media)
 
-    # --- Seleção de colunas ---
-    st.subheader("Colunas a exibir")
+    # --- Aplicar filtros ---
+    df_f = df.copy()
+    if filter_turma:
+        df_f = df_f[df_f[col_turma].isin(filter_turma)]
+    if filter_serie:
+        df_f = df_f[df_f[col_serie].isin(filter_serie)]
+    if filter_ano:
+        df_f = df_f[df_f[col_ano].isin(filter_ano)]
 
-    # Limpa nomes das colunas
-    colunas_disponiveis = [
-        c.replace("DADOS GERAIS - ", "")
-        .replace("PORCENTAGEM", "% ACERTO")
-        for c in materias_colunas if "PLANILHA" not in c
-    ]
+    for real_col, (op, val) in condicoes_materia.items():
+        # garantir coluna numérica
+        df_f[real_col] = pd.to_numeric(df_f[real_col], errors="coerce")
+        if op == "<":
+            df_f = df_f[df_f[real_col] < val]
+        elif op == "≤":
+            df_f = df_f[df_f[real_col] <= val]
+        elif op == ">":
+            df_f = df_f[df_f[real_col] > val]
+        elif op == "≥":
+            df_f = df_f[df_f[real_col] >= val]
+        elif op == "=":
+            df_f = df_f[df_f[real_col] == val]
 
-    colunas_escolhidas = st.multiselect(
-        "Escolha colunas adicionais:",
-        options=colunas_disponiveis
-    )
+    if media_cond:
+        op, val = media_cond
+        df_f[col_media] = pd.to_numeric(df_f[col_media], errors="coerce")
+        if op == "<":
+            df_f = df_f[df_f[col_media] < val]
+        elif op == "≤":
+            df_f = df_f[df_f[col_media] <= val]
+        elif op == ">":
+            df_f = df_f[df_f[col_media] > val]
+        elif op == "≥":
+            df_f = df_f[df_f[col_media] >= val]
+        elif op == "=":
+            df_f = df_f[df_f[col_media] == val]
 
-    # Reconstruir ordem final
-    colunas_finais = ['TURMA', 'SÉRIE', 'ANO']
-    for col in colunas_escolhidas:
-        # reverte nomes de exibição p/ nomes reais
-        nome_real = col.replace("% ACERTO", "PORCENTAGEM")
-        for original in materias_colunas:
-            if nome_real in original:
-                colunas_finais.append(original)
-                break
-    colunas_finais.append('MÉDIA GERAL')
+    # --- Seleção de colunas para exibição ---
+    st.markdown("### 🧾 Colunas a exibir")
+    # opções mostradas sem prefixo (excluem as fixas e PLANILHA)
+    display_options = options_display
+    chosen_display_cols = st.multiselect("Escolha colunas adicionais para exibir (não inclui as fixas):",
+                                         options=display_options)
 
-    # --- Mostrar todas as colunas ---
-    mostrar_todas = st.checkbox("Mostrar todas as colunas", value=False)
+    # opção: mostrar todas as colunas (exceto PLANILHA)
+    mostrar_todas = st.checkbox("Mostrar todas as colunas (exceto PLANILHA)", value=False)
+
+    # Reconstruir ordem final: TURMA → SÉRIE → ANO → <colunas escolhidas> → MÉDIA_GERAL
+    final_cols = [col_turma, col_serie, col_ano]
+
     if mostrar_todas:
-        colunas_finais = [c for c in df.columns if "PLANILHA" not in c]
+        # manter todas as colunas, mas remover PLANILHA e garantir ordenação final
+        all_cols = [c for c in df.columns if "PLANILHA" not in c]
+        # remover fixas da lista de "adicionais"
+        add_cols = [c for c in all_cols if c not in (col_turma, col_serie, col_ano, col_media)]
+        final_cols += add_cols
+    else:
+        # mapear display -> real e manter ordem escolhida pelo usuário
+        for display in chosen_display_cols:
+            real = find_real_column_from_display(display)
+            if real:
+                final_cols.append(real)
 
-    df_final = df_filtered[colunas_finais].sort_values(by=['TURMA', 'SÉRIE', 'ANO'])
+    final_cols.append(col_media)
 
-    # --- Exibir tabela ---
-    st.dataframe(df_final, use_container_width=True)
+    # garantir que colunas existam (defensivo)
+    final_cols = [c for c in final_cols if c in df_f.columns]
+
+    # ordenar sempre por TURMA, SÉRIE, ANO
+    if col_turma in df_f.columns and col_serie in df_f.columns and col_ano in df_f.columns:
+        df_f = df_f.sort_values(by=[col_turma, col_serie, col_ano])
+
+    df_result = df_f[final_cols]
+
+    # --- Exibir resultado ---
+    st.markdown("### 📋 Resultado")
+    st.dataframe(df_result, use_container_width=True)
 
     # --- Download CSV ---
-    csv = df_final.to_csv(index=False).encode('utf-8-sig')
-    st.download_button(
-        label="💾 Baixar filtragem em CSV",
-        data=csv,
-        file_name="filtragem_manual.csv",
-        mime="text/csv"
-    )
+    csv = df_result.to_csv(index=False).encode("utf-8-sig")
+    st.download_button("⬇️ Baixar CSV da filtragem", csv, file_name="filtragem_manual.csv", mime="text/csv")
+
+    # --- Rodapé com informações resumidas ---
+    st.markdown("---")
+    st.markdown("**Resumo (rodapé):**")
+    st.write(f"- Linhas totais no dataset original: **{len(df)}**")
+    st.write(f"- Linhas após filtragem: **{len(df_result)}**")
+    # contagem por turma (na amostra filtrada)
+    if col_turma in df_result.columns:
+        st.write("- Contagem por turma (filtrada):")
+        contagem_turma = df_result[col_turma].value_counts().rename_axis("Turma").reset_index(name="Quantidade")
+        st.dataframe(contagem_turma, use_container_width=True)
+    st.caption(
+        "Colunas fixas exibidas: TURMA, SÉRIE, ANO e MÉDIA_GERAL. Os nomes mostrados nos menus não alteram os nomes internos do arquivo.")
 
 def main():
     st.title("Visualizador Didático")
