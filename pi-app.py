@@ -497,6 +497,8 @@ def manual_filter(df):
 
     # --- Seleção de colunas para exibição ---
     st.markdown("### 🧾 Colunas a exibir")
+    st.caption(
+        "Colunas fixas exibidas: TURMA, SÉRIE, ANO e MÉDIA_GERAL.")
     # opções mostradas sem prefixo (excluem as fixas e PLANILHA)
     display_options = options_display
     chosen_display_cols = st.multiselect("Escolha colunas adicionais para exibir (não inclui as fixas):",
@@ -542,7 +544,7 @@ def manual_filter(df):
 
     # --- Rodapé com informações resumidas ---
     st.markdown("---")
-    st.markdown("**Resumo (rodapé):**")
+    st.markdown("**Resumo:**")
     st.write(f"- Linhas totais no dataset original: **{len(df)}**")
     st.write(f"- Linhas após filtragem: **{len(df_result)}**")
     # contagem por turma (na amostra filtrada)
@@ -550,8 +552,6 @@ def manual_filter(df):
         st.write("- Contagem por turma (filtrada):")
         contagem_turma = df_result[col_turma].value_counts().rename_axis("Turma").reset_index(name="Quantidade")
         st.dataframe(contagem_turma, use_container_width=True)
-    st.caption(
-        "Colunas fixas exibidas: TURMA, SÉRIE, ANO e MÉDIA_GERAL. Os nomes mostrados nos menus não alteram os nomes internos do arquivo.")
 
 def main():
     st.title("Visualizador Didático")
