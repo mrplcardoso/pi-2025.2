@@ -401,7 +401,7 @@ def manual_filter(df):
         # remover prefixo "DADOS GERAIS - " só na exibição
         name = name.replace("DADOS GERAIS - ", "")
         # mostrar "% ACERTO" em vez de "PORCENTAGEM"
-        name = name.replace("PORCENTAGEM", "% ACERTO")
+        name = name.replace("PORCENTAGENS DE ACERTO", "% ACERTO")
         return name
 
     # lista de colunas disponíveis para o usuário (exclui colunas fixas e 'PLANILHA')
@@ -503,7 +503,7 @@ def manual_filter(df):
                                          options=display_options)
 
     # opção: mostrar todas as colunas (exceto PLANILHA)
-    mostrar_todas = st.checkbox("Mostrar todas as colunas (exceto PLANILHA)", value=False)
+    mostrar_todas = st.checkbox("Mostrar todas as colunas", value=False)
 
     # Reconstruir ordem final: TURMA → SÉRIE → ANO → <colunas escolhidas> → MÉDIA_GERAL
     final_cols = [col_turma, col_serie, col_ano]
