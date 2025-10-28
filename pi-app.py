@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 import seaborn as sns  # <<< necessário
 sns.set_theme(style="whitegrid")
 
@@ -377,6 +380,95 @@ def dispersal(df):
         - Use a tabela de outliers para identificar os alunos e verificar se há problemas/erros de entrada.
         """)
 
+def cluster_analysis(df):
+    st.subheader("📊 Análise em Cluster")
+
+    # =========================================
+    # 1. Preparação dos dados
+    # =========================================
+    df_proc = df.copy()
+
+    colunas_notas = [
+        'DADOS GERAIS - IDADE', 'NOTAS - LP', 'NOTAS - LI', 'NOTAS - BIO', 'NOTAS - FÍS',
+        'NOTAS - QUÍ', 'NOTAS - MAT', 'NOTAS - GEO', 'NOTAS - HIS', 'NOTAS - FIL', 'NOTAS - SOC'
+    ]
+
+    df_numerico = df_proc[colunas_notas].dropna()
+
+    # =========================================
+    # 2. Padronização
+    # =========================================
+    scaler = StandardScaler()
+    dados_padronizados = scaler.fit_transform(df_numerico)
+
+    # =========================================
+    # 3. Escolha automática do número de clusters (k=3 por enquanto)
+    # =========================================
+    k = 3
+    modelo = KMeans(n_clusters=k, random_state=42)
+    df_proc['Cluster'] = modelo.fit_predict(dados_padronizados)
+
+    # =========================================
+    # 4. PCA para visualização 2D
+    # =========================================
+    pca = PCA(n_components=2)
+    componentes = pca.fit_transform(dados_padronizados)
+
+    fig1, ax1 = plt.subplots(figsize=(8, 6))
+    scatter = ax1.scatter(componentes[:, 0], componentes[:, 1], c=df_proc['Cluster'], cmap='viridis')
+    ax1.set_title('Clusters de Alunos (PCA - 2D)')
+    ax1.set_xlabel('Componente Principal 1')
+    ax1.set_ylabel('Componente Principal 2')
+    plt.colorbar(scatter, label='Cluster')
+
+    st.pyplot(fig1)
+
+    st.markdown("---")
+
+    # =========================================
+    # 5. Estatísticas por Cluster
+    # =========================================
+    media_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
+
+    st.markdown("### 📌 Médias das disciplinas por cluster")
+    st.dataframe(media_clusters.style.highlight_max(axis=1))
+
+    # =========================================
+    # 6. Gráfico Médias por Cluster
+    # =========================================
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    media_clusters.T.plot(kind='bar', ax=ax2)
+    ax2.set_title('Média das Disciplinas por Cluster')
+    ax2.set_xlabel('Disciplinas')
+    ax2.set_ylabel('Média das notas')
+    ax2.legend(title='Cluster', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+
+    st.pyplot(fig2)
+
+    st.markdown("---")
+
+    # =========================================
+    # 7. Distribuição por PERÍODO
+    # =========================================
+    if 'DADOS GERAIS - PERIODO' in df_proc.columns:
+
+        st.markdown("### 👥 Alunos por Período × Cluster")
+
+        dist_periodo = pd.crosstab(df_proc['DADOS GERAIS - PERIODO'], df_proc['Cluster'])
+        st.dataframe(dist_periodo)
+
+        fig3, ax3 = plt.subplots(figsize=(8, 6))
+        dist_periodo.plot(kind='bar', ax=ax3)
+        ax3.set_title('Número de Alunos por Período em Cada Cluster')
+        ax3.set_xlabel('Período')
+        ax3.set_ylabel('Quantidade de Alunos')
+        ax3.legend(title='Cluster')
+        plt.tight_layout()
+
+        st.pyplot(fig3)
+    else:
+        st.warning("⚠️ Coluna 'DADOS GERAIS - PERIODO' não encontrada no arquivo.")
 def manual_filter(df):
     st.subheader("Filtragem Manual de Dados")
 
@@ -565,8 +657,9 @@ def main():
 
     # Criação das abas principais
     (tab_general_review, tab_general_performance,
-     tab_subject_performance, tab_dispersal, tab_filter) = st.tabs(
-        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina", "Dispersão", "Filtragem Manual"])
+     tab_subject_performance, tab_dispersal, tab_cluster, tab_filter) = st.tabs(
+        ["Visão Geral", "Desempenho Geral", "Desempenho por Disciplina",
+         "Dispersão", "Análise em Cluster", "Filtragem Manual"])
 
     # ======================================================
     # Aba 1: Visão Geral
@@ -596,7 +689,14 @@ def main():
         dispersal(df)
 
     # ======================================================
-    # Aba 5: Filtragem Manual
+    # Aba 5: Análise em Cluster
+    # ======================================================
+
+    with tab_cluster:
+        cluster_analysis(df)
+
+    # ======================================================
+    # Aba 6: Filtragem Manual
     # ======================================================
 
     with tab_filter:
