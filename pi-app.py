@@ -381,7 +381,7 @@ def dispersal(df):
         """)
 
 def cluster_analysis(df):
-    st.subheader("📊 Análise em Cluster")
+    st.subheader("Análise em Cluster")
 
     # =========================================
     # 1. Preparação dos dados
@@ -411,6 +411,7 @@ def cluster_analysis(df):
     # =========================================
     # 4. PCA para visualização 2D
     # =========================================
+    st.markdown("### Visualização dos Clusters (PCA)")
     pca = PCA(n_components=2)
     componentes = pca.fit_transform(dados_padronizados)
 
@@ -430,7 +431,7 @@ def cluster_analysis(df):
     # =========================================
     media_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
 
-    st.markdown("### 📌 Médias das disciplinas por cluster")
+    st.markdown("### Médias das idades dos clusters por disciplina")
     st.dataframe(media_clusters.style.highlight_max(axis=1))
 
     # =========================================
@@ -453,7 +454,7 @@ def cluster_analysis(df):
     # =========================================
     if 'DADOS GERAIS - PERIODO' in df_proc.columns:
 
-        st.markdown("### 👥 Alunos por Período × Cluster")
+        st.markdown("### Período (turno) por cluster")
 
         dist_periodo = pd.crosstab(df_proc['DADOS GERAIS - PERIODO'], df_proc['Cluster'])
         st.dataframe(dist_periodo)
@@ -469,6 +470,7 @@ def cluster_analysis(df):
         st.pyplot(fig3)
     else:
         st.warning("⚠️ Coluna 'DADOS GERAIS - PERIODO' não encontrada no arquivo.")
+
 def manual_filter(df):
     st.subheader("Filtragem Manual de Dados")
 
@@ -506,7 +508,7 @@ def manual_filter(df):
     options_display = [display_name(c) for c in cols_para_opcoes]
 
     # --- FILTROS (turma/serie/ano) com listas dos valores disponíveis ---
-    st.markdown("### 🔎 Filtros principais")
+    st.markdown("### Filtros principais")
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -520,7 +522,7 @@ def manual_filter(df):
         filter_ano = st.multiselect("Ano", options=ano_vals)
 
     # --- Filtros por matéria (lista de matérias mostrada sem prefixo) ---
-    st.markdown("### 🧾 Filtros por Matéria (opcional)")
+    st.markdown("### Filtros por Matéria (opcional)")
     materias_sel_display = st.multiselect("Selecione matérias para filtrar (opcional)", options=options_display)
 
     # converter seleção de display names de volta para nomes reais das colunas
@@ -542,7 +544,7 @@ def manual_filter(df):
             condicoes_materia[real_col] = (op, val)
 
     # --- Filtro por média geral ---
-    st.markdown("### 📊 Filtro por Média Geral (opcional)")
+    st.markdown("### Filtro por Média Geral (opcional)")
     usar_media = st.checkbox("Ativar filtro por média geral?")
     media_cond = None
     if usar_media:
@@ -588,7 +590,7 @@ def manual_filter(df):
             df_f = df_f[df_f[col_media] == val]
 
     # --- Seleção de colunas para exibição ---
-    st.markdown("### 🧾 Colunas a exibir")
+    st.markdown("### Colunas a exibir")
     st.caption(
         "Colunas fixas exibidas: TURMA, SÉRIE, ANO e MÉDIA_GERAL.")
     # opções mostradas sem prefixo (excluem as fixas e PLANILHA)
@@ -627,7 +629,7 @@ def manual_filter(df):
     df_result = df_f[final_cols]
 
     # --- Exibir resultado ---
-    st.markdown("### 📋 Resultado")
+    st.markdown("### Resultado")
     st.dataframe(df_result, use_container_width=True)
 
     # --- Download CSV ---
