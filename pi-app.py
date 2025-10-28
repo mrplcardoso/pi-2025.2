@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-import seaborn as sns  # <<< necessário
+import seaborn as sns
 sns.set_theme(style="whitegrid")
 
 def flatten_multilevel_columns(df):
