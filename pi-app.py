@@ -451,7 +451,7 @@ def cluster_analysis(df):
     media_idade_cluster = df_proc.groupby('Cluster')[coluna_idade].mean()
 
     st.markdown("### Média de idade por cluster")
-    fig3, ax3 = plt.subplots(figsize=(6, 4))
+    fig3, ax3 = plt.subplots(figsize=(8, 5))
 
     # Aplicar cores diferentes para cada cluster
     colors = plt.cm.viridis(np.linspace(0, 1, len(media_idade_cluster)))
