@@ -432,10 +432,10 @@ def cluster_analysis(df):
     # =========================================
     media_disciplinas_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
 
-    st.markdown("### 📌 Média das disciplinas por cluster")
+    st.markdown("### Média das disciplinas por cluster")
     fig2, ax2 = plt.subplots(figsize=(10, 6))
     media_disciplinas_clusters.T.plot(kind='bar', ax=ax2)
-    ax2.set_title('Média das Disciplinas por Cluster')
+    ax2.set_title('Média das Notas das Disciplinas por Cluster')
     ax2.set_xlabel('Disciplinas')
     ax2.set_ylabel('Média das notas')
     ax2.legend(title='Cluster', bbox_to_anchor=(1, 1))
@@ -449,12 +449,13 @@ def cluster_analysis(df):
     # =========================================
     media_idade_cluster = df_proc.groupby('Cluster')[coluna_idade].mean()
 
-    st.markdown("### 👥 Média de idade por cluster")
+    st.markdown("### Média de idade por cluster")
     fig3, ax3 = plt.subplots(figsize=(6, 4))
-    media_idade_cluster.plot(kind='bar', ax=ax3)
+    media_idade_cluster.T.plot(kind='bar', ax=ax3)
+    ax3.set_title('Média da Idade por Cluster')
     ax3.set_xlabel('Cluster')
     ax3.set_ylabel('Idade (anos)')
-    ax3.set_title('Média da Idade por Cluster')
+    ax3.legend(title='Cluster', bbox_to_anchor=(1, 1))
     plt.tight_layout()
     st.pyplot(fig3)
 
