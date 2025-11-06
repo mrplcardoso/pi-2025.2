@@ -429,7 +429,7 @@ def cluster_analysis(df):
     # =========================================
     # 5. Estatísticas por Cluster
     # =========================================
-    media_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
+    media_clusters = df_proc.groupby('Cluster')['DADOS GERAIS - IDADE'].mean()
 
     st.markdown("### Médias das idades dos clusters por disciplina")
     st.dataframe(media_clusters.style.highlight_max(axis=1))
