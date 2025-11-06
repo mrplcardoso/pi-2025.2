@@ -428,18 +428,11 @@ def cluster_analysis(df):
     st.markdown("---")
 
     # =========================================
-    # 5. Estatísticas por Cluster
-    # =========================================
-    media_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
-
-    # =========================================
-    # 6. Gráfico Médias por Cluster
+    # 5. Gráfico Média de Notas por Cluster
     # =========================================
     media_disciplinas_clusters = df_proc.groupby('Cluster')[colunas_notas].mean()
 
     st.markdown("### 📌 Média das disciplinas por cluster")
-    st.dataframe(media_disciplinas_clusters.style.highlight_max(axis=1))
-
     fig2, ax2 = plt.subplots(figsize=(10, 6))
     media_disciplinas_clusters.T.plot(kind='bar', ax=ax2)
     ax2.set_title('Média das Disciplinas por Cluster')
@@ -451,6 +444,9 @@ def cluster_analysis(df):
 
     st.markdown("---")
 
+    # =========================================
+    # 6. Gráfico Média de Idade por Cluster
+    # =========================================
     media_idade_cluster = df_proc.groupby('Cluster')[coluna_idade].mean()
 
     st.markdown("### 👥 Média de idade por cluster")
