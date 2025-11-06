@@ -389,7 +389,7 @@ def cluster_analysis(df):
     df_proc = df.copy()
 
     colunas_notas = [
-        'DADOS GERAIS - IDADE', 'NOTAS - LP', 'NOTAS - LI', 'NOTAS - BIO', 'NOTAS - FÍS',
+        'NOTAS - LP', 'NOTAS - LI', 'NOTAS - BIO', 'NOTAS - FÍS',
         'NOTAS - QUÍ', 'NOTAS - MAT', 'NOTAS - GEO', 'NOTAS - HIS', 'NOTAS - FIL', 'NOTAS - SOC'
     ]
 
