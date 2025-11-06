@@ -451,11 +451,15 @@ def cluster_analysis(df):
 
     st.markdown("### Média de idade por cluster")
     fig3, ax3 = plt.subplots(figsize=(6, 4))
-    media_idade_cluster.T.plot(kind='bar', ax=ax3)
+
+    # Aplicar cores diferentes para cada cluster
+    colors = plt.cm.viridis(np.linspace(0, 1, len(media_idade_cluster)))
+
+    media_idade_cluster.plot(kind='bar', ax=ax3, color=colors)
+
     ax3.set_title('Média da Idade por Cluster')
     ax3.set_xlabel('Cluster')
     ax3.set_ylabel('Idade (anos)')
-    ax3.legend(title='Cluster', bbox_to_anchor=(1, 1))
     plt.tight_layout()
     st.pyplot(fig3)
 
